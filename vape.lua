@@ -3,6 +3,10 @@ if shared.VapeExecuted then
  local customdir = (shared.VapePrivate and "vapeprivate/" or "vape/")
  local rainbowvalue = 0
  local cam = game:GetService("Workspace").CurrentCamera
+ local tweenService = game:GetService("TweenService")
+ local inputService = game:GetService("UserInputService")
+ local playersService = game:GetService("Players")
+ local guiVisible = false
  local getasset = getsynasset or getcustomasset or function(location) return "rbxasset://"..location end
  local requestfunc = syn and syn.request or http and http.request or http_request or fluxus and fluxus.request or request or function(tab)
  if tab.Method == "GET" then
@@ -29,7 +33,7 @@ if shared.VapeExecuted then
  local suc, res = pcall(function() return readfile(file) end)
  return suc and res ~= nil
  end
- local mouse = game:GetService("Players").LocalPlayer:GetMouse()
+ local mouse = playersService.LocalPlayer:GetMouse()
  local loadedsuccessfully = false
  local api = {
  ["Settings"] = {["GUIObject"] = {["Type"] = "Custom", ["Color"] = 0.64}, ["SearchObject"] = {["Type"] = "Custom", ["List"] = {}}},
@@ -195,7 +199,7 @@ if shared.VapeExecuted then
  searchbarmain.Position = UDim2.new(0.5, -110, 0, -23)
  searchbarmain.ClipsDescendants = false
  searchbarmain.ZIndex = 10
- searchbarmain.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ searchbarmain.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  searchbarmain.Parent = clickgui
  local searchbarchildren = Instance.new("Frame")
  searchbarchildren.Size = UDim2.new(1, 0, 1, -45)
@@ -214,7 +218,7 @@ if shared.VapeExecuted then
  searchbar.PlaceholderText = ""
  searchbar.Text = ""
  searchbar.ZIndex = 10
- searchbar.TextColor3 = Color3.fromRGB(121, 121, 121)
+ searchbar.TextColor3 = Color3.fromRGB(132, 134, 144)
  searchbar.Size = UDim2.new(1, -13, 0, 43)
  searchbar.Font = Enum.Font.Gotham
  searchbar.TextXAlignment = Enum.TextXAlignment.Left
@@ -248,11 +252,11 @@ if shared.VapeExecuted then
  notificationwindow.Size = UDim2.new(1, 0, 1, 0)
  notificationwindow.Parent = api["MainGui"]
  local hoverbox = Instance.new("TextLabel")
- hoverbox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ hoverbox.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  hoverbox.Active = false
  hoverbox.Text = " ".."Placeholder"
  hoverbox.ZIndex = 11
- hoverbox.TextColor3 = Color3.fromRGB(162, 162, 162)
+ hoverbox.TextColor3 = Color3.fromRGB(196, 198, 206)
  hoverbox.Font = Enum.Font.SourceSans
  hoverbox.TextXAlignment = Enum.TextXAlignment.Left
  hoverbox.TextSize = 15
@@ -323,42 +327,61 @@ if shared.VapeExecuted then
  end)
 
  local function dragGUI(gui, tab)
- spawn(function()
- local dragging
- local dragInput
- local dragStart = Vector3.new(0,0,0)
+ local dragging = false
+ local dragStart = Vector3.new(0, 0, 0)
  local startPos
- local function update(input)
- local delta = input.Position - dragStart
- local Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + (delta.X * (1 / api["MainRescale"].Scale)), startPos.Y.Scale, startPos.Y.Offset + (delta.Y * (1 / api["MainRescale"].Scale)))
- game:GetService("TweenService"):Create(gui, TweenInfo.new(.20), {Position = Position}):Play()
+ local move
+ local ended
+ local function stop()
+ dragging = false
+ if move then
+ move:Disconnect()
+ move = nil
+ end
+ if ended then
+ ended:Disconnect()
+ ended = nil
+ end
  end
  gui.InputBegan:Connect(function(input)
- if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch and dragging == false then
+ if dragging then
+ return
+ end
+ if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+ return
+ end
+ if not clickgui.Visible then
+ return
+ end
  dragStart = input.Position
- local delta = (dragStart - Vector3.new(gui.AbsolutePosition.X, gui.AbsolutePosition.Y, 0)) * (1 / api["MainRescale"].Scale)
- if delta.Y <= 40 then
- dragging = clickgui.Visible
+ local scale = 1 / api["MainRescale"].Scale
+ local delta = (dragStart - Vector3.new(gui.AbsolutePosition.X, gui.AbsolutePosition.Y, 0)) * scale
+ if delta.Y > 40 then
+ return
+ end
+ dragging = true
  startPos = gui.Position
- 
- input.Changed:Connect(function()
+ move = inputService.InputChanged:Connect(function(moved)
+ if not dragging then
+ return
+ end
+ if moved.UserInputType ~= Enum.UserInputType.MouseMovement and moved.UserInputType ~= Enum.UserInputType.Touch then
+ return
+ end
+ local shift = moved.Position - dragStart
+ local factor = 1 / api["MainRescale"].Scale
+ gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + shift.X * factor, startPos.Y.Scale, startPos.Y.Offset + shift.Y * factor)
+ end)
+ ended = input.Changed:Connect(function()
  if input.UserInputState == Enum.UserInputState.End then
- dragging = false
+ stop()
  end
  end)
- end
- end
  end)
- gui.InputChanged:Connect(function(input)
- if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
- dragInput = input
+ clickgui:GetPropertyChangedSignal("Visible"):connect(function()
+ if not clickgui.Visible then
+ stop()
  end
- end)
- game:GetService("UserInputService").InputChanged:Connect(function(input)
- if input == dragInput and dragging then
- update(input)
- end
- end)
  end)
  end
 
@@ -639,9 +662,9 @@ if shared.VapeExecuted then
 
  api["CreateMainWindow"] = function()
  local windowapi = {}
- local settingsexithovercolor = Color3.fromRGB(20, 20, 20)
+ local settingsexithovercolor = Color3.fromRGB(13, 13, 16)
  local windowtitle = Instance.new("Frame")
- windowtitle.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ windowtitle.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  windowtitle.Size = UDim2.new(0, 220, 0, 45)
  windowtitle.Position = UDim2.new(0, 6, 0, 6)
  windowtitle.Name = "MainWindow"
@@ -691,12 +714,12 @@ if shared.VapeExecuted then
  settingsbox.Parent = settingstext
  settingsbox.Size = UDim2.new(0, 220, 0, 45)
  settingsbox.Position = UDim2.new(0, -36, 0, 0)
- settingsbox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ settingsbox.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  settingsbox.Parent = settingstext
  local settingsbox2 = Instance.new("TextLabel")
  settingsbox2.Size = UDim2.new(1, 0, 0, 16)
  settingsbox2.Position = UDim2.new(0, 0, 1, -16)
- settingsbox2.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ settingsbox2.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  settingsbox2.BorderSizePixel = 0
  settingsbox2.Visible = false
  settingsbox2.TextColor3 = Color3.fromRGB(80, 80, 80)
@@ -708,7 +731,7 @@ if shared.VapeExecuted then
  local settingsbox3 = Instance.new("Frame")
  settingsbox3.ZIndex = 1
  settingsbox3.Size = UDim2.new(1, 0, 0, 3)
- settingsbox3.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ settingsbox3.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  settingsbox3.BorderSizePixel = 0
  settingsbox3.Parent = settingsbox2
  local settingswheel = Instance.new("ImageButton")
@@ -758,9 +781,9 @@ if shared.VapeExecuted then
  end)
  spawn(function()
  local hover3textsize = game:GetService("TextService"):GetTextSize("Discord set to clipboard!", 16, Enum.Font.SourceSans, Vector2.new(99999, 99999))
- local pos = game:GetService("UserInputService"):GetMouseLocation()
+ local pos = inputService:GetMouseLocation()
  local hoverbox3 = Instance.new("TextLabel")
- hoverbox3.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ hoverbox3.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  hoverbox3.Active = false
  hoverbox3.Text = "Discord set to clipboard!"
  hoverbox3.ZIndex = 5
@@ -781,7 +804,7 @@ if shared.VapeExecuted then
  end)
  local settingsexit = Instance.new("ImageButton")
  settingsexit.Name = "SettingsExit"
- settingsexit.ImageColor3 = Color3.fromRGB(121, 121, 121)
+ settingsexit.ImageColor3 = Color3.fromRGB(132, 134, 144)
  settingsexit.Size = UDim2.new(0, 24, 0, 24)
  settingsexit.AutoButtonColor = false
  settingsexit.Image = getcustomassetfunc("vape/assets/ExitIcon1.png")
@@ -793,10 +816,10 @@ if shared.VapeExecuted then
  settingsexitround.CornerRadius = UDim.new(0, 16)
  settingsexitround.Parent = settingsexit
  settingsexit.MouseEnter:connect(function()
- game:GetService("TweenService"):Create(settingsexit, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60), ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+ tweenService:Create(settingsexit, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58), ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
  end)
  settingsexit.MouseLeave:connect(function()
- game:GetService("TweenService"):Create(settingsexit, api["HoverTween"], {BackgroundColor3 = settingsexithovercolor, ImageColor3 = Color3.fromRGB(121, 121, 121)}):Play()
+ tweenService:Create(settingsexit, api["HoverTween"], {BackgroundColor3 = settingsexithovercolor, ImageColor3 = Color3.fromRGB(132, 134, 144)}):Play()
  end)
  local children = Instance.new("Frame")
  children.BackgroundTransparency = 1
@@ -807,7 +830,7 @@ if shared.VapeExecuted then
  local extraframe = Instance.new("Frame")
  extraframe.Size = UDim2.new(0, 220, 0, 40)
  extraframe.BorderSizePixel = 0
- extraframe.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ extraframe.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  extraframe.LayoutOrder = 99999
  extraframe.Name = "Extras"
  extraframe.Parent = children
@@ -823,7 +846,7 @@ if shared.VapeExecuted then
  overlaysbkg.Visible = false
  overlaysbkg.Parent = windowtitle
  local overlaystitle = Instance.new("Frame")
- overlaystitle.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ overlaystitle.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  overlaystitle.Size = UDim2.new(0, 220, 0, 45)
  overlaystitle.Position = UDim2.new(0, 0, 1, -45)
  overlaystitle.Parent = overlaysbkg
@@ -838,21 +861,21 @@ if shared.VapeExecuted then
  overlaysicon.Parent = overlaystitle
  local overlaysexit = Instance.new("ImageButton")
  overlaysexit.Name = "OverlaysExit"
- overlaysexit.ImageColor3 = Color3.fromRGB(121, 121, 121)
+ overlaysexit.ImageColor3 = Color3.fromRGB(132, 134, 144)
  overlaysexit.Size = UDim2.new(0, 24, 0, 24)
  overlaysexit.AutoButtonColor = false
  overlaysexit.Image = getcustomassetfunc("vape/assets/ExitIcon1.png")
  overlaysexit.Position = UDim2.new(1, -32, 0, 9)
- overlaysexit.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ overlaysexit.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  overlaysexit.Parent = overlaystitle
  local overlaysexitround = Instance.new("UICorner")
  overlaysexitround.CornerRadius = UDim.new(0, 16)
  overlaysexitround.Parent = overlaysexit
  overlaysexit.MouseEnter:connect(function()
- game:GetService("TweenService"):Create(overlaysexit, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60), ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+ tweenService:Create(overlaysexit, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58), ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
  end)
  overlaysexit.MouseLeave:connect(function()
- game:GetService("TweenService"):Create(overlaysexit, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(26, 25, 26), ImageColor3 = Color3.fromRGB(121, 121, 121)}):Play()
+ tweenService:Create(overlaysexit, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(18, 18, 22), ImageColor3 = Color3.fromRGB(132, 134, 144)}):Play()
  end)
  local overlaysbutton = Instance.new("ImageButton")
  overlaysbutton.Size = UDim2.new(0, 12, 0, 10)
@@ -882,7 +905,7 @@ if shared.VapeExecuted then
  overlayschildren.Visible = true
  local children2 = Instance.new("Frame")
  children2.BackgroundTransparency = 1
- children2.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ children2.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  children2.BorderSizePixel = 0
  children2.Size = UDim2.new(0, 220, 1, -4)
  children2.Name = "SettingsChildren"
@@ -958,7 +981,7 @@ if shared.VapeExecuted then
  settingstext.Visible = false
  settingsexit.Visible = false
  windowtitle.Size = UDim2.new(0, 220, 0, 45 + uilistlayout.AbsoluteContentSize.Y * (1 / api["MainRescale"].Scale))
- windowtitle.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ windowtitle.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  end)
  windowbackbutton.MouseEnter:connect(function()
  windowbackbutton.ImageTransparency = 0
@@ -978,7 +1001,7 @@ if shared.VapeExecuted then
  children.Visible = false
  children2.Visible = true
  settingstext.Text = "Settings"
- settingsexithovercolor = Color3.fromRGB(20, 20, 20)
+ settingsexithovercolor = Color3.fromRGB(13, 13, 16)
  settingsexit.BackgroundColor3 = settingsexithovercolor
  settingsbox2.Visible = true
  settingsbox.Visible = true
@@ -986,7 +1009,7 @@ if shared.VapeExecuted then
  settingstext.Visible = true
  settingsexit.Visible = true
  windowtitle.Size = UDim2.new(0, 220, 0, 476)
- windowtitle.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ windowtitle.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  end)
 
  settingsexit.MouseButton1Click:connect(function()
@@ -999,7 +1022,7 @@ if shared.VapeExecuted then
  settingstext.Visible = false
  settingsexit.Visible = false
  windowtitle.Size = UDim2.new(0, 220, 0, 45 + uilistlayout.AbsoluteContentSize.Y * (1 / api["MainRescale"].Scale))
- windowtitle.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ windowtitle.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  end)
 
  overlaysbutton.MouseButton1Click:connect(function()
@@ -1038,7 +1061,7 @@ if shared.VapeExecuted then
  buttontext.LayoutOrder = amount
  buttontext.Size = UDim2.new(1, 0, 0, 40)
  buttontext.Active = false
- buttontext.TextColor3 = Color3.fromRGB(162, 162, 162)
+ buttontext.TextColor3 = Color3.fromRGB(196, 198, 206)
  buttontext.TextSize = 17
  buttontext.Font = Enum.Font.SourceSans
  buttontext.TextXAlignment = Enum.TextXAlignment.Left
@@ -1052,7 +1075,7 @@ if shared.VapeExecuted then
  local toggleframe1 = Instance.new("TextButton")
  toggleframe1.AutoButtonColor = false
  toggleframe1.Size = UDim2.new(0, 22, 0, 12)
- toggleframe1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ toggleframe1.BackgroundColor3 = Color3.fromRGB(48, 49, 58)
  toggleframe1.BorderSizePixel = 0
  toggleframe1.Text = ""
  toggleframe1.Name = "ToggleFrame1"
@@ -1062,7 +1085,7 @@ if shared.VapeExecuted then
  toggleframe2.Size = UDim2.new(0, 8, 0, 8)
  toggleframe2.Active = false
  toggleframe2.Position = UDim2.new(0, 2, 0, 2)
- toggleframe2.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ toggleframe2.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  toggleframe2.BorderSizePixel = 0
  toggleframe2.Parent = toggleframe1
  local uicorner = Instance.new("UICorner")
@@ -1087,7 +1110,7 @@ if shared.VapeExecuted then
  toggleicon.Visible = toggle
  if buttonapi["Enabled"] then
  if not first then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
  else
  toggleframe1.BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)
  end
@@ -1095,9 +1118,9 @@ if shared.VapeExecuted then
  toggleframe2:TweenPosition(UDim2.new(0, 12, 0, 2), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, 0.1, true)
  else
  if not first then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58)}):Play()
  else
- toggleframe1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ toggleframe1.BackgroundColor3 = Color3.fromRGB(48, 49, 58)
  end
  -- toggleframe1.BackgroundColor3 = Color3.fromRGB(37, 37, 37)
  toggleframe2:TweenPosition(UDim2.new(0, 2, 0, 2), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, 0.1, true)
@@ -1111,14 +1134,14 @@ if shared.VapeExecuted then
  toggleframe1.MouseEnter:connect(function()
  if buttonapi["Enabled"] == false then
  pcall(function()
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(100, 100, 100)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(86, 88, 102)}):Play()
  end)
  end
  end)
  toggleframe1.MouseLeave:connect(function()
  if buttonapi["Enabled"] == false then
  pcall(function()
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58)}):Play()
  end)
  end
  end)
@@ -1133,7 +1156,7 @@ if shared.VapeExecuted then
  if text then
  local dividerlabel = Instance.new("TextLabel")
  dividerlabel.Size = UDim2.new(1, 0, 0, 30)
- dividerlabel.BackgroundColor3 = Color3.fromRGB(20, 20, 20) 
+ dividerlabel.BackgroundColor3 = Color3.fromRGB(13, 13, 16) 
  dividerlabel.BorderSizePixel = 0
  dividerlabel.TextColor3 = Color3.fromRGB(85, 84, 85)
  dividerlabel.TextSize = 14
@@ -1177,7 +1200,7 @@ if shared.VapeExecuted then
  button.AutoButtonColor = false
  button.Size = UDim2.new(1, 0, 0, 40)
  button.BorderSizePixel = 0
- button.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ button.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  button.Text = ""
  button.LayoutOrder = amount
  button.Parent = children2
@@ -1187,7 +1210,7 @@ if shared.VapeExecuted then
  buttontext.Text = (translations[text] ~= nil and translations[text] or text)
  buttontext.Size = UDim2.new(0, 120, 0, 38)
  buttontext.Active = false
- buttontext.TextColor3 = Color3.fromRGB(162, 162, 162)
+ buttontext.TextColor3 = Color3.fromRGB(196, 198, 206)
  buttontext.TextSize = 17
  buttontext.Font = Enum.Font.SourceSans
  buttontext.TextXAlignment = Enum.TextXAlignment.Left
@@ -1211,7 +1234,7 @@ if shared.VapeExecuted then
  children3.Visible = false
  children2.Visible = true
  settingstext.Text = "Settings"
- settingsexithovercolor = Color3.fromRGB(20, 20, 20)
+ settingsexithovercolor = Color3.fromRGB(13, 13, 16)
  settingsexit.BackgroundColor3 = settingsexithovercolor
  settingsbox2.Visible = true
  settingsbox.Visible = true
@@ -1227,12 +1250,12 @@ if shared.VapeExecuted then
  windowbackbutton2.Image = getcustomassetfunc("vape/assets/BackIcon.png")
  windowbackbutton2.Parent = windowtitle
  button.MouseEnter:connect(function() 
- game:GetService("TweenService"):Create(button, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(31, 30, 31)}):Play()
+ tweenService:Create(button, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(28, 28, 34)}):Play()
  buttontext.TextColor3 = Color3.fromRGB(207, 207, 207)
  end)
  button.MouseLeave:connect(function() 
- game:GetService("TweenService"):Create(button, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(26, 25, 26)}):Play()
- buttontext.TextColor3 = Color3.fromRGB(162, 162, 162)
+ tweenService:Create(button, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(18, 18, 22)}):Play()
+ buttontext.TextColor3 = Color3.fromRGB(196, 198, 206)
  end)
  button.MouseButton1Click:connect(function()
  children2.Visible = false
@@ -1240,7 +1263,7 @@ if shared.VapeExecuted then
  windowbackbutton.Visible = false
  windowbackbutton2.Visible = true
  settingstext.Text = text
- settingsexithovercolor = Color3.fromRGB(26, 25, 26)
+ settingsexithovercolor = Color3.fromRGB(18, 18, 22)
  settingsexit.BackgroundColor3 = settingsexithovercolor
  settingsbox2.Visible = false
  settingsbox.Visible = false
@@ -1263,7 +1286,7 @@ if shared.VapeExecuted then
  buttontext.LayoutOrder = amount
  buttontext.Size = UDim2.new(1, 0, 0, 30)
  buttontext.Active = false
- buttontext.TextColor3 = Color3.fromRGB(162, 162, 162)
+ buttontext.TextColor3 = Color3.fromRGB(196, 198, 206)
  buttontext.TextSize = 17
  buttontext.Font = Enum.Font.SourceSans
  buttontext.TextXAlignment = Enum.TextXAlignment.Left
@@ -1279,7 +1302,7 @@ if shared.VapeExecuted then
  buttonarrow.Parent = buttontext
  local toggleframe1 = Instance.new("Frame")
  toggleframe1.Size = UDim2.new(0, 22, 0, 12)
- toggleframe1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ toggleframe1.BackgroundColor3 = Color3.fromRGB(48, 49, 58)
  toggleframe1.BorderSizePixel = 0
  toggleframe1.Name = "ToggleFrame1"
  toggleframe1.Position = UDim2.new(1, -32, 0, 10)
@@ -1288,7 +1311,7 @@ if shared.VapeExecuted then
  toggleframe2.Size = UDim2.new(0, 8, 0, 8)
  toggleframe2.Active = false
  toggleframe2.Position = UDim2.new(0, 2, 0, 2)
- toggleframe2.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ toggleframe2.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  toggleframe2.BorderSizePixel = 0
  toggleframe2.Parent = toggleframe1
  local uicorner = Instance.new("UICorner")
@@ -1306,16 +1329,16 @@ if shared.VapeExecuted then
  buttonapi["Enabled"] = toggle
  if buttonapi["Enabled"] then
  if not first then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
  else
  toggleframe1.BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)
  end
  toggleframe2:TweenPosition(UDim2.new(0, 12, 0, 2), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, 0.1, true)
  else
  if not first then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58)}):Play()
  else
- toggleframe1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ toggleframe1.BackgroundColor3 = Color3.fromRGB(48, 49, 58)
  end
  toggleframe2:TweenPosition(UDim2.new(0, 2, 0, 2), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, 0.1, true)
  end
@@ -1333,7 +1356,7 @@ if shared.VapeExecuted then
  hoverbox.Size = UDim2.new(0, 13 + textsize.X, 0, textsize.Y + 5)
  end
  if buttonapi["Enabled"] == false then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(100, 100, 100)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(86, 88, 102)}):Play()
  end
  end)
  if argstable["HoverText"] and type(argstable["HoverText"]) == "string" then
@@ -1345,7 +1368,7 @@ if shared.VapeExecuted then
  buttontext.MouseLeave:connect(function()
  hoverbox.Visible = false
  if buttonapi["Enabled"] == false then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58)}):Play()
  end
  end)
  
@@ -1369,7 +1392,7 @@ if shared.VapeExecuted then
  text1.TextXAlignment = Enum.TextXAlignment.Left
  text1.Text = " "..(translations[argstable["Name"]] ~= nil and translations[argstable["Name"]] or argstable["Name"])
  text1.Size = UDim2.new(1, 0, 0, 25)
- text1.TextColor3 = Color3.fromRGB(162, 162, 162)
+ text1.TextColor3 = Color3.fromRGB(196, 198, 206)
  text1.BackgroundTransparency = 1
  text1.TextSize = 17
  text1.Parent = frame
@@ -1380,7 +1403,7 @@ if shared.VapeExecuted then
  text2.Text = tostring((argstable["Default"] or argstable["Min"])) .. ".0 "..(argstable["Percent"] and "%" or " ").." "
  text2.Size = UDim2.new(0, 40, 0, 25)
  text2.Position = UDim2.new(1, -40, 0, 0)
- text2.TextColor3 = Color3.fromRGB(162, 162, 162)
+ text2.TextColor3 = Color3.fromRGB(196, 198, 206)
  text2.BackgroundTransparency = 1
  text2.TextSize = 17
  text2.Parent = frame
@@ -1411,7 +1434,7 @@ if shared.VapeExecuted then
  local slider1 = Instance.new("Frame")
  slider1.Size = UDim2.new(0, 200, 0, 2)
  slider1.BorderSizePixel = 0
- slider1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ slider1.BackgroundColor3 = Color3.fromRGB(48, 49, 58)
  slider1.Position = UDim2.new(0, 10, 0, 32)
  slider1.Name = "Slider"
  slider1.Parent = frame
@@ -1423,7 +1446,7 @@ if shared.VapeExecuted then
  local slider3 = Instance.new("ImageButton")
  slider3.AutoButtonColor = false
  slider3.Size = UDim2.new(0, 24, 0, 16)
- slider3.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ slider3.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  slider3.BorderSizePixel = 0
  slider3.Image = getcustomassetfunc("vape/assets/SliderButton1.png")
  slider3.Position = UDim2.new(1, -11, 0, -7)
@@ -1442,21 +1465,21 @@ if shared.VapeExecuted then
  argstable["Function"](val)
  end
  slider3.MouseButton1Down:Connect(function()
- local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, inputService:GetMouseLocation())
  sliderapi["SetValue"](math.floor(argstable["Min"] + ((argstable["Max"] - argstable["Min"]) * xscale)))
  text2.Text = sliderapi["Value"] .. ".0 "..(argstable["Percent"] and "%" or " ").." "
  slider2.Size = UDim2.new(xscale2,0,1,0)
  local move
  local kill
- move = game:GetService("UserInputService").InputChanged:Connect(function(input)
+ move = inputService.InputChanged:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseMovement then
- local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, inputService:GetMouseLocation())
  sliderapi["SetValue"](math.floor(argstable["Min"] + ((argstable["Max"] - argstable["Min"]) * xscale)))
  text2.Text = sliderapi["Value"] .. ".0 "..(argstable["Percent"] and "%" or " ").." "
  slider2.Size = UDim2.new(xscale2,0,1,0)
  end
  end)
- kill = game:GetService("UserInputService").InputEnded:Connect(function(input)
+ kill = inputService.InputEnded:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseButton1 then
  capturedslider = {["Type"] = "Slider", ["Object"] = frame, ["Api"] = sliderapi}
  move:Disconnect()
@@ -1526,7 +1549,7 @@ if shared.VapeExecuted then
  local toggleframe1 = Instance.new("TextButton")
  toggleframe1.AutoButtonColor = false
  toggleframe1.Size = UDim2.new(0, 195, 0, 22)
- toggleframe1.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ toggleframe1.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  toggleframe1.BorderSizePixel = 0
  toggleframe1.Text = (translations[argstable["Name"]] ~= nil and translations[argstable["Name"]] or argstable["Name"]):upper()
  toggleframe1.Font = Enum.Font.SourceSans
@@ -1544,10 +1567,10 @@ if shared.VapeExecuted then
  
  toggleframe1.MouseButton1Click:connect(function() argstable["Function"]() end)
  toggleframe1.MouseEnter:connect(function()
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(31, 30, 31)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(28, 28, 34)}):Play()
  end)
  toggleframe1.MouseLeave:connect(function()
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(26, 25, 26)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(18, 18, 22)}):Play()
  end)
  
  return buttonapi
@@ -1728,7 +1751,7 @@ if shared.VapeExecuted then
  text1.TextXAlignment = Enum.TextXAlignment.Left
  text1.Text = " "..name
  text1.Size = UDim2.new(1, 0, 0, 25)
- text1.TextColor3 = Color3.fromRGB(162, 162, 162)
+ text1.TextColor3 = Color3.fromRGB(196, 198, 206)
  text1.BackgroundTransparency = 1
  text1.TextSize = 14
  text1.Parent = frame
@@ -1770,7 +1793,7 @@ if shared.VapeExecuted then
  local slider3 = Instance.new("ImageButton")
  slider3.AutoButtonColor = false
  slider3.Size = UDim2.new(0, 26, 0, 12)
- slider3.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ slider3.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  slider3.BorderSizePixel = 0
  slider3.ZIndex = 2
  slider3.Image = getcustomassetfunc("vape/assets/ColorSlider1.png")
@@ -1827,19 +1850,19 @@ if shared.VapeExecuted then
  sliderrainbow.Image = (sliderapi["RainbowValue"] and getcustomassetfunc("vape/assets/RainbowIcon2.png") or getcustomassetfunc("vape/assets/RainbowIcon1.png"))
  end)
  slider1.MouseButton1Down:Connect(function()
- local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, inputService:GetMouseLocation())
  sliderapi["SetValue"](min + ((max - min) * xscale))
  -- slider3.Position = UDim2.new(math.clamp(xscale2, 0.02, 0.95), -9, 0, -5)
  local move
  local kill
- move = game:GetService("UserInputService").InputChanged:Connect(function(input)
+ move = inputService.InputChanged:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseMovement then
- local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, inputService:GetMouseLocation())
  sliderapi["SetValue"](min + ((max - min) * xscale))
  -- slider3.Position = UDim2.new(math.clamp(xscale2, 0.02, 0.95), -9, 0, -5)
  end
  end)
- kill = game:GetService("UserInputService").InputEnded:Connect(function(input)
+ kill = inputService.InputEnded:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseButton1 then
  capturedslider = {["Type"] = "ColorSlider", ["Object"] = frame, ["Api"] = sliderapi}
  move:Disconnect()
@@ -1856,19 +1879,19 @@ if shared.VapeExecuted then
  if click then
  sliderapi["SetRainbow"](not sliderapi["RainbowValue"])
  end
- local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, inputService:GetMouseLocation())
  sliderapi["SetValue"](min + ((max - min) * xscale))
  --slider3.Position = UDim2.new(math.clamp(xscale2, 0.02, 0.95), -9, 0, -5)
  local move
  local kill
- move = game:GetService("UserInputService").InputChanged:Connect(function(input)
+ move = inputService.InputChanged:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseMovement then
- local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, inputService:GetMouseLocation())
  sliderapi["SetValue"](min + ((max - min) * xscale))
  -- slider3.Position = UDim2.new(math.clamp(xscale2, 0.02, 0.95), -9, 0, -5)
  end
  end)
- kill = game:GetService("UserInputService").InputEnded:Connect(function(input)
+ kill = inputService.InputEnded:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseButton1 then
  capturedslider = {["Type"] = "ColorSlider", ["Object"] = frame, ["Api"] = sliderapi}
  move:Disconnect()
@@ -1893,7 +1916,7 @@ if shared.VapeExecuted then
  buttontext.LayoutOrder = amount
  buttontext.Size = UDim2.new(1, 0, 0, 30)
  buttontext.Active = false
- buttontext.TextColor3 = Color3.fromRGB(162, 162, 162)
+ buttontext.TextColor3 = Color3.fromRGB(196, 198, 206)
  buttontext.TextSize = 17
  buttontext.Font = Enum.Font.SourceSans
  buttontext.TextXAlignment = Enum.TextXAlignment.Left
@@ -1909,7 +1932,7 @@ if shared.VapeExecuted then
  buttonarrow.Parent = buttontext
  local toggleframe1 = Instance.new("Frame")
  toggleframe1.Size = UDim2.new(0, 22, 0, 12)
- toggleframe1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ toggleframe1.BackgroundColor3 = Color3.fromRGB(48, 49, 58)
  toggleframe1.BorderSizePixel = 0
  toggleframe1.Name = "ToggleFrame1"
  toggleframe1.Position = UDim2.new(1, -32, 0, 10)
@@ -1918,7 +1941,7 @@ if shared.VapeExecuted then
  toggleframe2.Size = UDim2.new(0, 8, 0, 8)
  toggleframe2.Active = false
  toggleframe2.Position = UDim2.new(0, 2, 0, 2)
- toggleframe2.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ toggleframe2.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  toggleframe2.BorderSizePixel = 0
  toggleframe2.Parent = toggleframe1
  local uicorner = Instance.new("UICorner")
@@ -1936,16 +1959,16 @@ if shared.VapeExecuted then
  buttonapi["Enabled"] = toggle
  if buttonapi["Enabled"] then
  if not first then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
  else
  toggleframe1.BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)
  end
  toggleframe2:TweenPosition(UDim2.new(0, 12, 0, 2), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, 0.1, true)
  else
  if not first then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58)}):Play()
  else
- toggleframe1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ toggleframe1.BackgroundColor3 = Color3.fromRGB(48, 49, 58)
  end
  toggleframe2:TweenPosition(UDim2.new(0, 2, 0, 2), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, 0.1, true)
  end
@@ -1963,7 +1986,7 @@ if shared.VapeExecuted then
  hoverbox.Size = UDim2.new(0, 13 + textsize.X, 0, textsize.Y + 5)
  end
  if buttonapi["Enabled"] == false then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(100, 100, 100)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(86, 88, 102)}):Play()
  end
  end)
  if argstable["HoverText"] and type(argstable["HoverText"]) == "string" then
@@ -1975,7 +1998,7 @@ if shared.VapeExecuted then
  buttontext.MouseLeave:connect(function()
  hoverbox.Visible = false
  if buttonapi["Enabled"] == false then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58)}):Play()
  end
  end)
  
@@ -1991,7 +2014,7 @@ if shared.VapeExecuted then
  button.AutoButtonColor = false
  button.Size = UDim2.new(1, 0, 0, 40)
  button.BorderSizePixel = 0
- button.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ button.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  button.Text = ""
  button.LayoutOrder = amount
  button.Parent = children
@@ -2001,7 +2024,7 @@ if shared.VapeExecuted then
  buttontext.Text = (translations[argstable["Name"]] ~= nil and translations[argstable["Name"]] or argstable["Name"])
  buttontext.Size = UDim2.new(0, 120, 0, 38)
  buttontext.Active = false
- buttontext.TextColor3 = Color3.fromRGB(162, 162, 162)
+ buttontext.TextColor3 = Color3.fromRGB(196, 198, 206)
  buttontext.TextSize = 17
  buttontext.Font = Enum.Font.SourceSans
  buttontext.TextXAlignment = Enum.TextXAlignment.Left
@@ -2032,15 +2055,15 @@ if shared.VapeExecuted then
  if overlaysbkg.Visible == false then
  buttonapi["Enabled"] = not buttonapi["Enabled"]
  if buttonapi["Enabled"] then
- button.BackgroundColor3 = Color3.fromRGB(31, 30, 31)
+ button.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
  buttontext.TextColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)
  arrow:TweenPosition(UDim2.new(1, -14, 0, 16), Enum.EasingDirection.InOut, Enum.EasingStyle.Quad, 0.2, true)
  if buttonicon then
  buttonicon.ImageColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)
  end
  else
- button.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
- buttontext.TextColor3 = Color3.fromRGB(162, 162, 162)
+ button.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+ buttontext.TextColor3 = Color3.fromRGB(196, 198, 206)
  arrow:TweenPosition(UDim2.new(1, -20, 0, 16), Enum.EasingDirection.InOut, Enum.EasingStyle.Quad, 0.2, true)
  if buttonicon then
  buttonicon.ImageColor3 = Color3.fromRGB(207, 207, 207)
@@ -2055,7 +2078,7 @@ if shared.VapeExecuted then
  button.MouseEnter:connect(function() 
  if overlaysbkg.Visible == false then
  if not buttonapi["Enabled"] then
- game:GetService("TweenService"):Create(button, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(31, 30, 31)}):Play()
+ tweenService:Create(button, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(28, 28, 34)}):Play()
  buttontext.TextColor3 = Color3.fromRGB(207, 207, 207)
  if buttonicon then
  buttonicon.ImageColor3 = Color3.fromRGB(207, 207, 207)
@@ -2066,10 +2089,10 @@ if shared.VapeExecuted then
  button.MouseLeave:connect(function() 
  if overlaysbkg.Visible == false then
  if not buttonapi["Enabled"] then
- game:GetService("TweenService"):Create(button, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(26, 25, 26)}):Play()
- buttontext.TextColor3 = Color3.fromRGB(162, 162, 162)
+ tweenService:Create(button, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(18, 18, 22)}):Play()
+ buttontext.TextColor3 = Color3.fromRGB(196, 198, 206)
  if buttonicon then
- buttonicon.ImageColor3 = Color3.fromRGB(162, 162, 162)
+ buttonicon.ImageColor3 = Color3.fromRGB(196, 198, 206)
  end
  end
  end
@@ -2087,7 +2110,7 @@ if shared.VapeExecuted then
  local windowtitle = Instance.new("TextButton")
  windowtitle.Text = ""
  windowtitle.AutoButtonColor = false
- windowtitle.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ windowtitle.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  windowtitle.Size = UDim2.new(0, 220, 0, 45)
  windowtitle.Position = UDim2.new(0, 223, 0, 6)
  windowtitle.Name = "MainWindow"
@@ -2233,7 +2256,7 @@ if shared.VapeExecuted then
  text1.TextXAlignment = Enum.TextXAlignment.Left
  text1.Text = " "..(translations[argstable["Name"]] ~= nil and translations[argstable["Name"]] or argstable["Name"])
  text1.Size = UDim2.new(1, 0, 0, 25)
- text1.TextColor3 = Color3.fromRGB(162, 162, 162)
+ text1.TextColor3 = Color3.fromRGB(196, 198, 206)
  text1.BackgroundTransparency = 1
  text1.TextSize = 17
  text1.Parent = frame
@@ -2244,7 +2267,7 @@ if shared.VapeExecuted then
  text2.Text = tostring((argstable["Default"] or argstable["Min"])) .. ".0 "..(argstable["Percent"] and "%" or " ").." "
  text2.Size = UDim2.new(0, 40, 0, 25)
  text2.Position = UDim2.new(1, -40, 0, 0)
- text2.TextColor3 = Color3.fromRGB(162, 162, 162)
+ text2.TextColor3 = Color3.fromRGB(196, 198, 206)
  text2.BackgroundTransparency = 1
  text2.TextSize = 17
  text2.Parent = frame
@@ -2275,7 +2298,7 @@ if shared.VapeExecuted then
  local slider1 = Instance.new("Frame")
  slider1.Size = UDim2.new(0, 200, 0, 2)
  slider1.BorderSizePixel = 0
- slider1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ slider1.BackgroundColor3 = Color3.fromRGB(48, 49, 58)
  slider1.Position = UDim2.new(0, 10, 0, 32)
  slider1.Name = "Slider"
  slider1.Parent = frame
@@ -2287,7 +2310,7 @@ if shared.VapeExecuted then
  local slider3 = Instance.new("ImageButton")
  slider3.AutoButtonColor = false
  slider3.Size = UDim2.new(0, 24, 0, 16)
- slider3.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ slider3.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  slider3.BorderSizePixel = 0
  slider3.Image = getcustomassetfunc("vape/assets/SliderButton1.png")
  slider3.Position = UDim2.new(1, -11, 0, -7)
@@ -2306,21 +2329,21 @@ if shared.VapeExecuted then
  argstable["Function"](val)
  end
  slider3.MouseButton1Down:Connect(function()
- local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, inputService:GetMouseLocation())
  sliderapi["SetValue"](math.floor(argstable["Min"] + ((argstable["Max"] - argstable["Min"]) * xscale)))
  text2.Text = sliderapi["Value"] .. ".0 "..(argstable["Percent"] and "%" or " ").." "
  slider2.Size = UDim2.new(xscale2,0,1,0)
  local move
  local kill
- move = game:GetService("UserInputService").InputChanged:Connect(function(input)
+ move = inputService.InputChanged:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseMovement then
- local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, inputService:GetMouseLocation())
  sliderapi["SetValue"](math.floor(argstable["Min"] + ((argstable["Max"] - argstable["Min"]) * xscale)))
  text2.Text = sliderapi["Value"] .. ".0 "..(argstable["Percent"] and "%" or " ").." "
  slider2.Size = UDim2.new(xscale2,0,1,0)
  end
  end)
- kill = game:GetService("UserInputService").InputEnded:Connect(function(input)
+ kill = inputService.InputEnded:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseButton1 then
  capturedslider = {["Type"] = "Slider", ["Object"] = frame, ["Api"] = sliderapi}
  move:Disconnect()
@@ -2392,7 +2415,7 @@ if shared.VapeExecuted then
  local framebox = Instance.new("TextBox")
  framebox.Size = UDim2.new(0, 200, 0, 29)
  framebox.Position = UDim2.new(0, 10, 0, 16)
- framebox.BackgroundColor3 = Color3.fromRGB(31, 30, 31)
+ framebox.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
  framebox.Font = Enum.Font.SourceSans
  framebox.PlaceholderText = " Click to set"
  framebox.Text = ""
@@ -2444,7 +2467,7 @@ if shared.VapeExecuted then
  drop1.Parent = frame
  drop1.BorderSizePixel = 0
  drop1.ZIndex = 2
- drop1.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ drop1.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  drop1.TextSize = 17
  drop1.TextXAlignment = Enum.TextXAlignment.Left
  drop1.Text = ""
@@ -2484,7 +2507,7 @@ if shared.VapeExecuted then
  local windowtitle = Instance.new("TextButton")
  windowtitle.Text = ""
  windowtitle.AutoButtonColor = false
- windowtitle.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ windowtitle.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  windowtitle.Size = UDim2.new(0, 220, 0, 41)
  windowtitle.Position = UDim2.new(1, 1, 0, 0)
  windowtitle.Name = "CircleWindow"
@@ -2598,7 +2621,7 @@ if shared.VapeExecuted then
  addbutton.BorderSizePixel = 0
  addbutton.Name = "AddButton"
  addbutton.ZIndex = 6
- addbutton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ addbutton.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  addbutton.Position = UDim2.new(0, (argstable["Name"] == "ProfilesList" and 124 or 174), 0, 8)
  addbutton.AutoButtonColor = false
  addbutton.Size = UDim2.new(0, 16, 0, 16)
@@ -2650,7 +2673,7 @@ if shared.VapeExecuted then
  itemframe.Size = UDim2.new(0, 200, 0, 33)
  itemframe.Text = ""
  itemframe.AutoButtonColor = false
- itemframe.BackgroundColor3 = (hoveredover[i] and Color3.fromRGB(26, 25, 26) or Color3.fromRGB(31, 30, 31))
+ itemframe.BackgroundColor3 = (hoveredover[i] and Color3.fromRGB(18, 18, 22) or Color3.fromRGB(28, 28, 34))
  itemframe.BorderSizePixel = 0
  itemframe.ZIndex = 5
  itemframe.Parent = scrollframe
@@ -2690,11 +2713,11 @@ if shared.VapeExecuted then
  friendcircle2.BackgroundColor3 = itemframe.BackgroundColor3
  end)
  itemframe.MouseEnter:connect(function()
- itemframe.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ itemframe.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  hoveredover[i] = true
  end)
  itemframe.MouseLeave:connect(function()
- itemframe.BackgroundColor3 = Color3.fromRGB(31, 30, 31)
+ itemframe.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
  hoveredover[i] = nil
  end)
  itemframe.MouseButton1Click:connect(function()
@@ -2745,7 +2768,7 @@ if shared.VapeExecuted then
  buttontext.LayoutOrder = amount
  buttontext.AutoButtonColor = false
  buttontext.Size = UDim2.new(0, 45, 0, 29)
- buttontext.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ buttontext.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  buttontext.Active = false
  buttontext.Text = ""
  buttontext.ZIndex = 4
@@ -2764,7 +2787,7 @@ if shared.VapeExecuted then
  buttonimage.Position = UDim2.new(0, 14, 0, 7)
  buttonimage.Size = UDim2.new(0, argstable["IconSize"], 0, 16)
  buttonimage.Image = getcustomassetfunc(argstable["Icon"])
- buttonimage.ImageColor3 = Color3.fromRGB(121, 121, 121)
+ buttonimage.ImageColor3 = Color3.fromRGB(132, 134, 144)
  buttonimage.ZIndex = 5
  buttonimage.Active = false
  buttonimage.Parent = buttontext
@@ -2790,18 +2813,18 @@ if shared.VapeExecuted then
  buttontexticon.Visible = toggle
  if buttonapi["Enabled"] then
  if not first then
- game:GetService("TweenService"):Create(buttontext, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
+ tweenService:Create(buttontext, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
  else
  buttontext.BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)
  end
  else
  if not first then
- game:GetService("TweenService"):Create(buttontext, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(26, 25, 26)}):Play()
+ tweenService:Create(buttontext, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(18, 18, 22)}):Play()
  else
- buttontext.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ buttontext.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  end
  end
- buttonimage.ImageColor3 = (buttonapi["Enabled"] and Color3.new(1, 1, 1) or Color3.fromRGB(121, 121, 121))
+ buttonimage.ImageColor3 = (buttonapi["Enabled"] and Color3.new(1, 1, 1) or Color3.fromRGB(132, 134, 144))
  argstable["Function"](buttonapi["Enabled"])
  end
  
@@ -2821,17 +2844,17 @@ if shared.VapeExecuted then
  drop1.MouseButton1Click:connect(function()
  windowtitle.Visible = not windowtitle.Visible
  if not windowtitle.Visible then
- game:GetService("TweenService"):Create(thing, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(107, 107, 107)}):Play()
+ tweenService:Create(thing, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(107, 107, 107)}):Play()
  end
  end)
  drop1.MouseEnter:connect(function()
  if not windowtitle.Visible then
- game:GetService("TweenService"):Create(thing, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(107, 107, 107)}):Play()
+ tweenService:Create(thing, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(107, 107, 107)}):Play()
  end
  end)
  drop1.MouseLeave:connect(function()
  if not windowtitle.Visible then
- game:GetService("TweenService"):Create(thing, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(38, 37, 38)}):Play()
+ tweenService:Create(thing, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(38, 37, 38)}):Play()
  end
  end)
  
@@ -2857,10 +2880,10 @@ if shared.VapeExecuted then
  drop1.Parent = frame
  drop1.BorderSizePixel = 0
  drop1.ZIndex = 2
- drop1.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ drop1.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  drop1.TextSize = 17
  drop1.TextXAlignment = Enum.TextXAlignment.Left
- drop1.TextColor3 = Color3.fromRGB(162, 162, 162)
+ drop1.TextColor3 = Color3.fromRGB(196, 198, 206)
  drop1.Text = " "..(translations[argstable["Name"]] ~= nil and translations[argstable["Name"]] or argstable["Name"]).." - "..(list ~= {} and list[1] or "")
  drop1.TextTruncate = Enum.TextTruncate.AtEnd
  drop1.Font = Enum.Font.SourceSans
@@ -2872,7 +2895,7 @@ if shared.VapeExecuted then
  expandbutton2.Position = UDim2.new(1, -19, 1, -16)
  expandbutton2.Name = "ExpandButton2"
  expandbutton2.BackgroundTransparency = 0
- expandbutton2.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ expandbutton2.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  expandbutton2.BorderSizePixel = 0
  expandbutton2.Parent = drop1
  local drop2 = drop1:Clone()
@@ -2904,7 +2927,7 @@ if shared.VapeExecuted then
  dropframe.Position = UDim2.new(0, 0, 0, 0)
  dropframe.Size = UDim2.new(1, 0, 0, 0)
  dropframe.BackgroundTransparency = 0
- dropframe.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ dropframe.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  dropframe.Visible = false
  local uicorner3 = Instance.new("UICorner")
  uicorner3.CornerRadius = UDim.new(0, 6)
@@ -2967,13 +2990,13 @@ if shared.VapeExecuted then
  dropframe.Size = UDim2.new(0, 198, 0, placeholder + 23)
  drop2.Text = " "..listobj
  drop2.LayoutOrder = numbe
- drop2.TextColor3 = Color3.fromRGB(162, 162, 162)
+ drop2.TextColor3 = Color3.fromRGB(196, 198, 206)
  drop2.AutoButtonColor = false
  drop2.TextXAlignment = Enum.TextXAlignment.Left
  drop2.TextYAlignment = Enum.TextYAlignment.Top
  drop2.Size = UDim2.new(0, 198, 0, 19)
  drop2.Position = UDim2.new(0, 0, 0, placeholder)
- drop2.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ drop2.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  drop2.Font = Enum.Font.SourceSans
  drop2.TextSize = 17
  drop2.ZIndex = 4
@@ -2991,10 +3014,10 @@ if shared.VapeExecuted then
  api["UpdateHudEvent"]:Fire()
  end)
  drop2.MouseEnter:connect(function()
- drop2.BackgroundColor3 = Color3.fromRGB(31, 30, 31)
+ drop2.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
  end)
  drop2.MouseLeave:connect(function()
- drop2.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ drop2.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  end)
  placeholder = placeholder + 19
  end
@@ -3029,7 +3052,7 @@ if shared.VapeExecuted then
  text1.TextXAlignment = Enum.TextXAlignment.Left
  text1.Text = " "..(translations[argstable["Name"]] ~= nil and translations[argstable["Name"]] or argstable["Name"])
  text1.Size = UDim2.new(1, 0, 0, 25)
- text1.TextColor3 = Color3.fromRGB(162, 162, 162)
+ text1.TextColor3 = Color3.fromRGB(196, 198, 206)
  text1.BackgroundTransparency = 1
  text1.TextSize = 16
  text1.Parent = frame
@@ -3056,7 +3079,7 @@ if shared.VapeExecuted then
  local slider3 = Instance.new("ImageButton")
  slider3.AutoButtonColor = false
  slider3.Size = UDim2.new(0, 24, 0, 16)
- slider3.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ slider3.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  slider3.BorderSizePixel = 0
  slider3.Image = getcustomassetfunc("vape/assets/SliderButton1.png")
  slider3.Position = UDim2.new(0.44, -11, 0, -7)
@@ -3101,19 +3124,19 @@ if shared.VapeExecuted then
  if click then
  sliderapi["SetRainbow"](not sliderapi["RainbowValue"])
  end
- local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, inputService:GetMouseLocation())
  sliderapi["SetValue"](min + ((max - min) * xscale))
  slider3.Position = UDim2.new(math.clamp(xscale2, 0.02, 0.95), -9, 0, -7)
  local move
  local kill
- move = game:GetService("UserInputService").InputChanged:Connect(function(input)
+ move = inputService.InputChanged:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseMovement then
- local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, inputService:GetMouseLocation())
  sliderapi["SetValue"](min + ((max - min) * xscale))
  slider3.Position = UDim2.new(math.clamp(xscale2, 0.02, 0.95), -9, 0, -7)
  end
  end)
- kill = game:GetService("UserInputService").InputEnded:Connect(function(input)
+ kill = inputService.InputEnded:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseButton1 then
  capturedslider = {["Type"] = "ColorSlider", ["Object"] = frame, ["Api"] = sliderapi}
  move:Disconnect()
@@ -3130,19 +3153,19 @@ if shared.VapeExecuted then
  if click then
  sliderapi["SetRainbow"](not sliderapi["RainbowValue"])
  end
- local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, inputService:GetMouseLocation())
  sliderapi["SetValue"](min + ((max - min) * xscale))
  slider3.Position = UDim2.new(math.clamp(xscale2, 0.02, 0.95), -9, 0, -7)
  local move
  local kill
- move = game:GetService("UserInputService").InputChanged:Connect(function(input)
+ move = inputService.InputChanged:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseMovement then
- local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, inputService:GetMouseLocation())
  sliderapi["SetValue"](min + ((max - min) * xscale))
  slider3.Position = UDim2.new(math.clamp(xscale2, 0.02, 0.95), -9, 0, -7)
  end
  end)
- kill = game:GetService("UserInputService").InputEnded:Connect(function(input)
+ kill = inputService.InputEnded:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseButton1 then
  capturedslider = {["Type"] = "ColorSlider", ["Object"] = frame, ["Api"] = sliderapi}
  move:Disconnect()
@@ -3184,7 +3207,7 @@ if shared.VapeExecuted then
  buttontext.LayoutOrder = amount
  buttontext.Size = UDim2.new(1, 0, 0, 30)
  buttontext.Active = false
- buttontext.TextColor3 = Color3.fromRGB(162, 162, 162)
+ buttontext.TextColor3 = Color3.fromRGB(196, 198, 206)
  buttontext.TextSize = 17
  buttontext.Font = Enum.Font.SourceSans
  buttontext.TextXAlignment = Enum.TextXAlignment.Left
@@ -3200,7 +3223,7 @@ if shared.VapeExecuted then
  buttonarrow.Parent = buttontext
  local toggleframe1 = Instance.new("Frame")
  toggleframe1.Size = UDim2.new(0, 22, 0, 12)
- toggleframe1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ toggleframe1.BackgroundColor3 = Color3.fromRGB(48, 49, 58)
  toggleframe1.BorderSizePixel = 0
  toggleframe1.Name = "ToggleFrame1"
  toggleframe1.Position = UDim2.new(1, -32, 0, 10)
@@ -3209,7 +3232,7 @@ if shared.VapeExecuted then
  toggleframe2.Size = UDim2.new(0, 8, 0, 8)
  toggleframe2.Active = false
  toggleframe2.Position = UDim2.new(0, 2, 0, 2)
- toggleframe2.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ toggleframe2.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  toggleframe2.BorderSizePixel = 0
  toggleframe2.Parent = toggleframe1
  local uicorner = Instance.new("UICorner")
@@ -3227,16 +3250,16 @@ if shared.VapeExecuted then
  buttonapi["Enabled"] = toggle
  if buttonapi["Enabled"] then
  if not first then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
  else
  toggleframe1.BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)
  end
  toggleframe2:TweenPosition(UDim2.new(0, 12, 0, 2), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, 0.1, true)
  else
  if not first then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58)}):Play()
  else
- toggleframe1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ toggleframe1.BackgroundColor3 = Color3.fromRGB(48, 49, 58)
  end
  toggleframe2:TweenPosition(UDim2.new(0, 2, 0, 2), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, 0.1, true)
  end
@@ -3254,7 +3277,7 @@ if shared.VapeExecuted then
  hoverbox.Size = UDim2.new(0, 13 + textsize.X, 0, textsize.Y + 5)
  end
  if buttonapi["Enabled"] == false then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(100, 100, 100)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(86, 88, 102)}):Play()
  end
  end)
  if argstable["HoverText"] and type(argstable["HoverText"]) == "string" then
@@ -3266,7 +3289,7 @@ if shared.VapeExecuted then
  buttontext.MouseLeave:connect(function()
  hoverbox.Visible = false
  if buttonapi["Enabled"] == false then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58)}):Play()
  end
  end)
 
@@ -3304,7 +3327,7 @@ if shared.VapeExecuted then
  local windowtitle = Instance.new("TextButton")
  windowtitle.Text = ""
  windowtitle.AutoButtonColor = false
- windowtitle.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ windowtitle.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  windowtitle.Size = UDim2.new(0, 220, 0, 41)
  windowtitle.Position = UDim2.new(0, 223, 0, 6)
  windowtitle.Name = "MainWindow"
@@ -3423,12 +3446,12 @@ if shared.VapeExecuted then
  local buttonapi = {}
  local amount = #children:GetChildren()
  local button = Instance.new("TextButton")
- local currenttween = game:GetService("TweenService"):Create(button, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(31, 30, 31)})
+ local currenttween = tweenService:Create(button, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(28, 28, 34)})
  button.Name = argstablemain["Name"].."Button"
  button.AutoButtonColor = false
  button.Size = UDim2.new(1, 0, 0, 40)
  button.BorderSizePixel = 0
- button.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ button.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  button.Text = ""
  --button.LayoutOrder = amount
  button.Parent = children
@@ -3453,7 +3476,7 @@ if shared.VapeExecuted then
  buttontext.Text = (translations[argstablemain["Name"]] ~= nil and translations[argstablemain["Name"]] or argstablemain["Name"])
  buttontext.Size = UDim2.new(0, 118, 0, 39)
  buttontext.Active = false
- buttontext.TextColor3 = Color3.fromRGB(162, 162, 162)
+ buttontext.TextColor3 = Color3.fromRGB(196, 198, 206)
  buttontext.TextSize = 17
  buttontext.Font = Enum.Font.SourceSans
  buttontext.TextXAlignment = Enum.TextXAlignment.Left
@@ -3462,7 +3485,7 @@ if shared.VapeExecuted then
  local children2 = Instance.new("Frame")
  children2.Size = UDim2.new(1, 0, 0, 0)
  children2.BorderSizePixel = 0
- children2.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ children2.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  -- children2.LayoutOrder = amount
  children2.Visible = false
  children2.Name = argstablemain["Name"].."Children"
@@ -3602,10 +3625,10 @@ if shared.VapeExecuted then
  bindtext.TextColor3 = Color3.fromRGB(45, 45, 45)
  bindimg.ImageColor3 = Color3.fromRGB(45, 45, 45)
  else
- button.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ button.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  buttonactiveborder.Visible = false
  button2.Image = getcustomassetfunc("vape/assets/MoreButton1.png")
- buttontext.TextColor3 = Color3.fromRGB(162, 162, 162)
+ buttontext.TextColor3 = Color3.fromRGB(196, 198, 206)
  bindbkg.BackgroundTransparency = 0.95
  bindtext.TextColor3 = Color3.fromRGB(88, 88, 88)
  bindimg.ImageColor3 = Color3.fromRGB(88, 88, 88)
@@ -3681,7 +3704,7 @@ if shared.VapeExecuted then
  local addbutton = Instance.new("ImageButton")
  addbutton.BorderSizePixel = 0
  addbutton.Name = "AddButton"
- addbutton.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ addbutton.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  addbutton.Position = UDim2.new(0, 174, 0, 8)
  addbutton.AutoButtonColor = false
  addbutton.Size = UDim2.new(0, 16, 0, 16)
@@ -3727,7 +3750,7 @@ if shared.VapeExecuted then
  for i,v in pairs(textapi["ObjectList"]) do
  local itemframe = Instance.new("TextButton")
  itemframe.Size = UDim2.new(0, 200, 0, 33)
- itemframe.BackgroundColor3 = Color3.fromRGB(31, 30, 31)
+ itemframe.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
  itemframe.BorderSizePixel = 0
  itemframe.Text = ""
  itemframe.AutoButtonColor = false
@@ -3850,7 +3873,7 @@ if shared.VapeExecuted then
  drop1.Parent = frame
  drop1.BorderSizePixel = 0
  drop1.ZIndex = 2
- drop1.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ drop1.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  drop1.TextSize = 17
  drop1.TextXAlignment = Enum.TextXAlignment.Left
  drop1.Text = ""
@@ -3893,7 +3916,7 @@ if shared.VapeExecuted then
  local windowtitle = Instance.new("TextButton")
  windowtitle.Text = ""
  windowtitle.AutoButtonColor = false
- windowtitle.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ windowtitle.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  windowtitle.Size = UDim2.new(0, 220, 0, 41)
  windowtitle.Position = UDim2.new(1, 1, 0, 0)
  windowtitle.Name = argstablemain["Name"].."TargetWindow"
@@ -3981,7 +4004,7 @@ if shared.VapeExecuted then
  buttontext.LayoutOrder = amount
  buttontext.Size = UDim2.new(1, 0, 0, 30)
  buttontext.Active = false
- buttontext.TextColor3 = Color3.fromRGB(162, 162, 162)
+ buttontext.TextColor3 = Color3.fromRGB(196, 198, 206)
  buttontext.TextSize = 17
  buttontext.ZIndex = 3
  buttontext.Font = Enum.Font.SourceSans
@@ -3999,7 +4022,7 @@ if shared.VapeExecuted then
  buttonarrow.Parent = buttontext
  local toggleframe1 = Instance.new("Frame")
  toggleframe1.Size = UDim2.new(0, 22, 0, 12)
- toggleframe1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ toggleframe1.BackgroundColor3 = Color3.fromRGB(48, 49, 58)
  toggleframe1.BorderSizePixel = 0
  toggleframe1.ZIndex = 3
  toggleframe1.Name = "ToggleFrame1"
@@ -4010,7 +4033,7 @@ if shared.VapeExecuted then
  toggleframe2.Active = false
  toggleframe2.ZIndex = 3
  toggleframe2.Position = UDim2.new(0, 2, 0, 2)
- toggleframe2.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ toggleframe2.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  toggleframe2.BorderSizePixel = 0
  toggleframe2.Parent = toggleframe1
  local uicorner = Instance.new("UICorner")
@@ -4028,16 +4051,16 @@ if shared.VapeExecuted then
  buttonapi["Enabled"] = toggle
  if buttonapi["Enabled"] then
  if not first then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
  else
  toggleframe1.BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)
  end
  toggleframe2:TweenPosition(UDim2.new(0, 12, 0, 2), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, 0.1, true)
  else
  if not first then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58)}):Play()
  else
- toggleframe1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ toggleframe1.BackgroundColor3 = Color3.fromRGB(48, 49, 58)
  end
  toggleframe2:TweenPosition(UDim2.new(0, 2, 0, 2), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, 0.1, true)
  end
@@ -4055,7 +4078,7 @@ if shared.VapeExecuted then
  hoverbox.Size = UDim2.new(0, 13 + textsize.X, 0, textsize.Y + 5)
  end
  if buttonapi["Enabled"] == false then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(100, 100, 100)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(86, 88, 102)}):Play()
  end
  end)
  if argstable["HoverText"] and type(argstable["HoverText"]) == "string" then
@@ -4067,7 +4090,7 @@ if shared.VapeExecuted then
  buttontext.MouseLeave:connect(function()
  hoverbox.Visible = false
  if buttonapi["Enabled"] == false then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58)}):Play()
  end
  end)
  
@@ -4083,7 +4106,7 @@ if shared.VapeExecuted then
  buttontext.LayoutOrder = amount
  buttontext.AutoButtonColor = false
  buttontext.Size = UDim2.new(0, 45, 0, 29)
- buttontext.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ buttontext.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  buttontext.Active = false
  buttontext.Text = ""
  buttontext.ZIndex = 4
@@ -4102,7 +4125,7 @@ if shared.VapeExecuted then
  buttonimage.Position = UDim2.new(0, 14, 0, 7)
  buttonimage.Size = UDim2.new(0, argstable["IconSize"], 0, 16)
  buttonimage.Image = getcustomassetfunc(argstable["Icon"])
- buttonimage.ImageColor3 = Color3.fromRGB(121, 121, 121)
+ buttonimage.ImageColor3 = Color3.fromRGB(132, 134, 144)
  buttonimage.ZIndex = 5
  buttonimage.Active = false
  buttonimage.Parent = buttontext
@@ -4128,18 +4151,18 @@ if shared.VapeExecuted then
  buttontexticon.Visible = toggle
  if buttonapi["Enabled"] then
  if not first then
- game:GetService("TweenService"):Create(buttontext, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
+ tweenService:Create(buttontext, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
  else
  buttontext.BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)
  end
  else
  if not first then
- game:GetService("TweenService"):Create(buttontext, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(26, 25, 26)}):Play()
+ tweenService:Create(buttontext, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(18, 18, 22)}):Play()
  else
- buttontext.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ buttontext.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  end
  end
- buttonimage.ImageColor3 = (buttonapi["Enabled"] and Color3.new(1, 1, 1) or Color3.fromRGB(121, 121, 121))
+ buttonimage.ImageColor3 = (buttonapi["Enabled"] and Color3.new(1, 1, 1) or Color3.fromRGB(132, 134, 144))
  argstable["Function"](buttonapi["Enabled"])
  end
 
@@ -4203,17 +4226,17 @@ if shared.VapeExecuted then
  drop1.MouseButton1Click:connect(function()
  windowtitle.Visible = not windowtitle.Visible
  if not windowtitle.Visible then
- game:GetService("TweenService"):Create(thing, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(107, 107, 107)}):Play()
+ tweenService:Create(thing, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(107, 107, 107)}):Play()
  end
  end)
  drop1.MouseEnter:connect(function()
  if not windowtitle.Visible then
- game:GetService("TweenService"):Create(thing, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(107, 107, 107)}):Play()
+ tweenService:Create(thing, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(107, 107, 107)}):Play()
  end
  end)
  drop1.MouseLeave:connect(function()
  if not windowtitle.Visible then
- game:GetService("TweenService"):Create(thing, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(38, 37, 38)}):Play()
+ tweenService:Create(thing, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(38, 37, 38)}):Play()
  end
  end)
 
@@ -4240,7 +4263,7 @@ if shared.VapeExecuted then
  drop1.Parent = frame
  drop1.BorderSizePixel = 0
  drop1.ZIndex = 2
- drop1.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ drop1.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  drop1.TextSize = 17
  drop1.TextXAlignment = Enum.TextXAlignment.Left
  drop1.Text = ""
@@ -4280,7 +4303,7 @@ if shared.VapeExecuted then
  local windowtitle = Instance.new("TextButton")
  windowtitle.Text = ""
  windowtitle.AutoButtonColor = false
- windowtitle.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ windowtitle.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  windowtitle.Size = UDim2.new(0, 220, 0, 41)
  windowtitle.Position = UDim2.new(1, 1, 0, 0)
  windowtitle.Name = "CircleWindow"
@@ -4394,7 +4417,7 @@ if shared.VapeExecuted then
  addbutton.BorderSizePixel = 0
  addbutton.Name = "AddButton"
  addbutton.ZIndex = 6
- addbutton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ addbutton.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  addbutton.Position = UDim2.new(0, (argstable["Name"] == "ProfilesList" and 124 or 174), 0, 8)
  addbutton.AutoButtonColor = false
  addbutton.Size = UDim2.new(0, 16, 0, 16)
@@ -4446,7 +4469,7 @@ if shared.VapeExecuted then
  itemframe.Size = UDim2.new(0, 200, 0, 33)
  itemframe.Text = ""
  itemframe.AutoButtonColor = false
- itemframe.BackgroundColor3 = (hoveredover[i] and Color3.fromRGB(26, 25, 26) or Color3.fromRGB(31, 30, 31))
+ itemframe.BackgroundColor3 = (hoveredover[i] and Color3.fromRGB(18, 18, 22) or Color3.fromRGB(28, 28, 34))
  itemframe.BorderSizePixel = 0
  itemframe.ZIndex = 5
  itemframe.Parent = scrollframe
@@ -4486,11 +4509,11 @@ if shared.VapeExecuted then
  friendcircle2.BackgroundColor3 = itemframe.BackgroundColor3
  end)
  itemframe.MouseEnter:connect(function()
- itemframe.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ itemframe.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  hoveredover[i] = true
  end)
  itemframe.MouseLeave:connect(function()
- itemframe.BackgroundColor3 = Color3.fromRGB(31, 30, 31)
+ itemframe.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
  hoveredover[i] = nil
  end)
  itemframe.MouseButton1Click:connect(function()
@@ -4541,7 +4564,7 @@ if shared.VapeExecuted then
  buttontext.LayoutOrder = amount
  buttontext.AutoButtonColor = false
  buttontext.Size = UDim2.new(0, 45, 0, 29)
- buttontext.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ buttontext.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  buttontext.Active = false
  buttontext.Text = ""
  buttontext.ZIndex = 4
@@ -4560,7 +4583,7 @@ if shared.VapeExecuted then
  buttonimage.Position = UDim2.new(0, 14, 0, 7)
  buttonimage.Size = UDim2.new(0, argstable["IconSize"], 0, 16)
  buttonimage.Image = getcustomassetfunc(argstable["Icon"])
- buttonimage.ImageColor3 = Color3.fromRGB(121, 121, 121)
+ buttonimage.ImageColor3 = Color3.fromRGB(132, 134, 144)
  buttonimage.ZIndex = 5
  buttonimage.Active = false
  buttonimage.Parent = buttontext
@@ -4586,18 +4609,18 @@ if shared.VapeExecuted then
  buttontexticon.Visible = toggle
  if buttonapi["Enabled"] then
  if not first then
- game:GetService("TweenService"):Create(buttontext, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
+ tweenService:Create(buttontext, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
  else
  buttontext.BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)
  end
  else
  if not first then
- game:GetService("TweenService"):Create(buttontext, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(26, 25, 26)}):Play()
+ tweenService:Create(buttontext, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(18, 18, 22)}):Play()
  else
- buttontext.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ buttontext.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  end
  end
- buttonimage.ImageColor3 = (buttonapi["Enabled"] and Color3.new(1, 1, 1) or Color3.fromRGB(121, 121, 121))
+ buttonimage.ImageColor3 = (buttonapi["Enabled"] and Color3.new(1, 1, 1) or Color3.fromRGB(132, 134, 144))
  argstable["Function"](buttonapi["Enabled"])
  end
 
@@ -4617,17 +4640,17 @@ if shared.VapeExecuted then
  drop1.MouseButton1Click:connect(function()
  windowtitle.Visible = not windowtitle.Visible
  if not windowtitle.Visible then
- game:GetService("TweenService"):Create(thing, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(107, 107, 107)}):Play()
+ tweenService:Create(thing, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(107, 107, 107)}):Play()
  end
  end)
  drop1.MouseEnter:connect(function()
  if not windowtitle.Visible then
- game:GetService("TweenService"):Create(thing, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(107, 107, 107)}):Play()
+ tweenService:Create(thing, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(107, 107, 107)}):Play()
  end
  end)
  drop1.MouseLeave:connect(function()
  if not windowtitle.Visible then
- game:GetService("TweenService"):Create(thing, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(38, 37, 38)}):Play()
+ tweenService:Create(thing, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(38, 37, 38)}):Play()
  end
  end)
 
@@ -4653,10 +4676,10 @@ if shared.VapeExecuted then
  drop1.Parent = frame
  drop1.BorderSizePixel = 0
  drop1.ZIndex = 2
- drop1.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ drop1.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  drop1.TextSize = 17
  drop1.TextXAlignment = Enum.TextXAlignment.Left
- drop1.TextColor3 = Color3.fromRGB(162, 162, 162)
+ drop1.TextColor3 = Color3.fromRGB(196, 198, 206)
  drop1.Text = " "..(translations[argstable["Name"]] ~= nil and translations[argstable["Name"]] or argstable["Name"]).." - "..(list ~= {} and list[1] or "")
  drop1.TextTruncate = Enum.TextTruncate.AtEnd
  drop1.Font = Enum.Font.SourceSans
@@ -4668,7 +4691,7 @@ if shared.VapeExecuted then
  expandbutton2.Position = UDim2.new(1, -19, 1, -16)
  expandbutton2.Name = "ExpandButton2"
  expandbutton2.BackgroundTransparency = 0
- expandbutton2.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ expandbutton2.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  expandbutton2.BorderSizePixel = 0
  expandbutton2.Parent = drop1
  local drop2 = drop1:Clone()
@@ -4700,7 +4723,7 @@ if shared.VapeExecuted then
  dropframe.Position = UDim2.new(0, 0, 0, 0)
  dropframe.Size = UDim2.new(1, 0, 0, 0)
  dropframe.BackgroundTransparency = 0
- dropframe.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ dropframe.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  dropframe.Visible = false
  local uicorner3 = Instance.new("UICorner")
  uicorner3.CornerRadius = UDim.new(0, 6)
@@ -4746,7 +4769,7 @@ if shared.VapeExecuted then
  hoverbox.Visible = false
  if buttonapi["Enabled"] == false then
  pcall(function()
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58)}):Play()
  end)
  end
  end)
@@ -4771,13 +4794,13 @@ if shared.VapeExecuted then
  dropframe.Size = UDim2.new(0, 198, 0, placeholder + 21)
  drop2.Text = " "..listobj
  drop2.LayoutOrder = numbe
- drop2.TextColor3 = Color3.fromRGB(162, 162, 162)
+ drop2.TextColor3 = Color3.fromRGB(196, 198, 206)
  drop2.AutoButtonColor = false
  drop2.BackgroundTransparency = 1
  drop2.TextXAlignment = Enum.TextXAlignment.Left
  drop2.Size = UDim2.new(0, 198, 0, 21)
  drop2.Position = UDim2.new(0, 2, 0, placeholder - 4)
- drop2.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ drop2.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  drop2.Font = Enum.Font.SourceSans
  drop2.TextSize = 17
  drop2.ZIndex = 8
@@ -4830,7 +4853,7 @@ if shared.VapeExecuted then
  text1.TextXAlignment = Enum.TextXAlignment.Left
  text1.Text = " "..(translations[argstable["Name"]] ~= nil and translations[argstable["Name"]] or argstable["Name"])
  text1.Size = UDim2.new(1, 0, 0, 27)
- text1.TextColor3 = Color3.fromRGB(162, 162, 162)
+ text1.TextColor3 = Color3.fromRGB(196, 198, 206)
  text1.BackgroundTransparency = 1
  text1.TextSize = 14
  text1.Parent = frame
@@ -4857,7 +4880,7 @@ if shared.VapeExecuted then
  local slider3 = Instance.new("ImageButton")
  slider3.AutoButtonColor = false
  slider3.Size = UDim2.new(0, 24, 0, 16)
- slider3.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ slider3.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  slider3.BorderSizePixel = 0
  slider3.Image = getcustomassetfunc("vape/assets/SliderButton1.png")
  slider3.Position = UDim2.new(0.44, -11, 0, -7)
@@ -4868,10 +4891,10 @@ if shared.VapeExecuted then
  slidersat.Name = frame.Name.."Saturation"
  slidersat.BackgroundTransparency = 0
  slidersat.Visible = false
- slidersat.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ slidersat.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  slidersat.Slider.UIGradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, 1)), ColorSequenceKeypoint.new(1, Color3.fromHSV(0.4, 1, 1))})
  slidersat.Slider.ButtonSlider.Position = UDim2.new(0.95, -11, 0, -7)
- slidersat.Slider.ButtonSlider.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ slidersat.Slider.ButtonSlider.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  slidersat.Frame:Remove()
  slidersat.Parent = children2
  local sliderval = frame:Clone()
@@ -4879,10 +4902,10 @@ if shared.VapeExecuted then
  sliderval.Name = frame.Name.."Vibrance"
  sliderval.BackgroundTransparency = 0
  sliderval.Visible = false
- sliderval.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ sliderval.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  sliderval.Slider.UIGradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, 0)), ColorSequenceKeypoint.new(1, Color3.fromHSV(0.4, 1, 1))})
  sliderval.Slider.ButtonSlider.Position = UDim2.new(0.95, -11, 0, -7)
- sliderval.Slider.ButtonSlider.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ sliderval.Slider.ButtonSlider.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  sliderval.Frame:Remove()
  sliderval.Parent = children2
  local sliderexpand = Instance.new("ImageButton")
@@ -4953,19 +4976,19 @@ if shared.VapeExecuted then
  if click then
  sliderapi["SetRainbow"](not sliderapi["RainbowValue"])
  end
- local x,y,xscale,yscale,xscale2 = RelativeXY(obj, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(obj, inputService:GetMouseLocation())
  sliderapi["SetValue"]((valtochange == "Hue" and (min + ((max - min) * xscale)) or false), (valtochange == "Sat" and (min + ((max - min) * xscale)) or false), (valtochange == "Value" and (min + ((max - min) * xscale)) or false))
  obj.ButtonSlider.Position = UDim2.new(math.clamp(xscale2, 0.02, 0.95), -9, 0, -7)
  local move
  local kill
- move = game:GetService("UserInputService").InputChanged:Connect(function(input)
+ move = inputService.InputChanged:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseMovement then
- local x,y,xscale,yscale,xscale2 = RelativeXY(obj, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(obj, inputService:GetMouseLocation())
  sliderapi["SetValue"]((valtochange == "Hue" and (min + ((max - min) * xscale)) or false), (valtochange == "Sat" and (min + ((max - min) * xscale)) or false), (valtochange == "Value" and (min + ((max - min) * xscale)) or false))
  obj.ButtonSlider.Position = UDim2.new(math.clamp(xscale2, 0.02, 0.95), -9, 0, -7)
  end
  end)
- kill = game:GetService("UserInputService").InputEnded:Connect(function(input)
+ kill = inputService.InputEnded:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseButton1 then
  capturedslider = {["Type"] = "ColorSlider", ["Object"] = obj.Parent, ["Api"] = sliderapi}
  move:Disconnect()
@@ -5010,7 +5033,7 @@ if shared.VapeExecuted then
  hoverbox.Visible = false
  if buttonapi["Enabled"] == false then
  pcall(function()
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58)}):Play()
  end)
  end
  end)
@@ -5034,7 +5057,7 @@ if shared.VapeExecuted then
  text1.TextXAlignment = Enum.TextXAlignment.Left
  text1.Text = " "..(translations[argstable["Name"]] ~= nil and translations[argstable["Name"]] or argstable["Name"])
  text1.Size = UDim2.new(1, 0, 0, 25)
- text1.TextColor3 = Color3.fromRGB(162, 162, 162)
+ text1.TextColor3 = Color3.fromRGB(196, 198, 206)
  text1.BackgroundTransparency = 1
  text1.TextSize = 17
  text1.Parent = frame
@@ -5045,7 +5068,7 @@ if shared.VapeExecuted then
  text2.Text = tostring((argstable["Default"] or argstable["Min"])) .. " "..(argstable["Percent"] and "%" or " ").." "
  text2.Size = UDim2.new(0, 40, 0, 25)
  text2.Position = UDim2.new(1, -40, 0, 0)
- text2.TextColor3 = Color3.fromRGB(162, 162, 162)
+ text2.TextColor3 = Color3.fromRGB(196, 198, 206)
  text2.BackgroundTransparency = 1
  text2.TextSize = 17
  text2.Parent = frame
@@ -5076,7 +5099,7 @@ if shared.VapeExecuted then
  local slider1 = Instance.new("Frame")
  slider1.Size = UDim2.new(0, 200, 0, 2)
  slider1.BorderSizePixel = 0
- slider1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ slider1.BackgroundColor3 = Color3.fromRGB(48, 49, 58)
  slider1.Position = UDim2.new(0, 10, 0, 32)
  slider1.Name = "Slider"
  slider1.Parent = frame
@@ -5088,7 +5111,7 @@ if shared.VapeExecuted then
  local slider3 = Instance.new("ImageButton")
  slider3.AutoButtonColor = false
  slider3.Size = UDim2.new(0, 24, 0, 16)
- slider3.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ slider3.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  slider3.BorderSizePixel = 0
  slider3.Image = getcustomassetfunc("vape/assets/SliderButton1.png")
  slider3.Position = UDim2.new(1, -11, 0, -7)
@@ -5108,23 +5131,23 @@ if shared.VapeExecuted then
  argstable["Function"](val)
  end
  slider3.MouseButton1Down:Connect(function()
- local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, inputService:GetMouseLocation())
  sliderapi["SetValue"](math.floor(argstable["Min"] + ((argstable["Max"] - argstable["Min"]) * xscale)))
  local doublecheck = argstable["Double"] and (sliderapi["Value"] / argstable["Double"]) or sliderapi["Value"]
  text2.Text = doublecheck .. " "..(argstable["Percent"] and "% " or " ").." "
  slider2.Size = UDim2.new(xscale2,0,1,0)
  local move
  local kill
- move = game:GetService("UserInputService").InputChanged:Connect(function(input)
+ move = inputService.InputChanged:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseMovement then
- local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, inputService:GetMouseLocation())
  sliderapi["SetValue"](math.floor(argstable["Min"] + ((argstable["Max"] - argstable["Min"]) * xscale)))
  local doublecheck = argstable["Double"] and (sliderapi["Value"] / argstable["Double"]) or sliderapi["Value"]
  text2.Text = doublecheck .. " "..(argstable["Percent"] and "% " or " ").." "
  slider2.Size = UDim2.new(xscale2,0,1,0)
  end
  end)
- kill = game:GetService("UserInputService").InputEnded:Connect(function(input)
+ kill = inputService.InputEnded:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseButton1 then
  capturedslider = {["Type"] = "Slider", ["Object"] = frame, ["Api"] = sliderapi}
  move:Disconnect()
@@ -5188,7 +5211,7 @@ if shared.VapeExecuted then
  text1.TextXAlignment = Enum.TextXAlignment.Left
  text1.Text = " "..(translations[argstable["Name"]] ~= nil and translations[argstable["Name"]] or argstable["Name"])
  text1.Size = UDim2.new(1, 0, 0, 25)
- text1.TextColor3 = Color3.fromRGB(162, 162, 162)
+ text1.TextColor3 = Color3.fromRGB(196, 198, 206)
  text1.BackgroundTransparency = 1
  text1.TextSize = 17
  text1.Parent = frame
@@ -5198,13 +5221,13 @@ if shared.VapeExecuted then
  local text2string = tostring((argstable["Default2"] or argstable["Max"]) / 10)
  text2.Text = (argstable["Decimal"] and (text2string:len() > 1 and text2string or text2string..".0 ") or (argstable["Default2"] or argstable["Max"]) .. ".0 ")
  text2.Size = UDim2.new(1, 0, 0, 25)
- text2.TextColor3 = Color3.fromRGB(162, 162, 162)
+ text2.TextColor3 = Color3.fromRGB(196, 198, 206)
  text2.BackgroundTransparency = 1
  text2.TextSize = 17
  text2.Parent = frame
  local text3 = Instance.new("TextLabel")
  text3.Font = Enum.Font.SourceSans
- text3.TextColor3 = Color3.fromRGB(162, 162, 162)
+ text3.TextColor3 = Color3.fromRGB(196, 198, 206)
  text3.BackgroundTransparency = 1
  text3.TextXAlignment = Enum.TextXAlignment.Right
  text3.Size = UDim2.new(1, -77, 0, 25)
@@ -5221,7 +5244,7 @@ if shared.VapeExecuted then
  local slider1 = Instance.new("Frame")
  slider1.Size = UDim2.new(0, 200, 0, 2)
  slider1.BorderSizePixel = 0
- slider1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ slider1.BackgroundColor3 = Color3.fromRGB(48, 49, 58)
  slider1.Position = UDim2.new(0, 10, 0, 32)
  slider1.Name = "Slider"
  slider1.Parent = frame
@@ -5234,7 +5257,7 @@ if shared.VapeExecuted then
  local slider3 = Instance.new("ImageButton")
  slider3.AutoButtonColor = false
  slider3.Size = UDim2.new(0, 15, 0, 16)
- slider3.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ slider3.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  slider3.BorderSizePixel = 0
  slider3.Image = getcustomassetfunc("vape/assets/SliderArrow1.png")
  slider3.Position = UDim2.new(1, -7, 1, -9)
@@ -5281,20 +5304,20 @@ if shared.VapeExecuted then
  return Random.new().NextNumber(Random.new(), sliderapi["Value"], sliderapi["Value2"])
  end
  slider3.MouseButton1Down:Connect(function()
- local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, inputService:GetMouseLocation())
  sliderapi["SetValue"](math.floor(argstable["Min"] + ((argstable["Max"] - argstable["Min"]) * xscale)))
  slider3.Position = UDim2.new(xscale2, -8, 1, -9)
  local move
  local kill
- move = game:GetService("UserInputService").InputChanged:Connect(function(input)
+ move = inputService.InputChanged:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseMovement then
- local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, inputService:GetMouseLocation())
  sliderapi["SetValue"](math.floor(argstable["Min"] + ((argstable["Max"] - argstable["Min"]) * xscale)))
  -- slider3.Position = UDim2.new(xscale2, -8, 1, -9)
  slider3:TweenPosition(UDim2.new(xscale2, -8, 1, -9), Enum.EasingDirection.InOut, Enum.EasingStyle.Quad, 0.05, true)
  end
  end)
- kill = game:GetService("UserInputService").InputEnded:Connect(function(input)
+ kill = inputService.InputEnded:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseButton1 then
  capturedslider = {["Type"] = "Slider", ["Object"] = frame, ["Api"] = sliderapi}
  move:Disconnect()
@@ -5303,20 +5326,20 @@ if shared.VapeExecuted then
  end)
  end)
  slider4.MouseButton1Down:Connect(function()
- local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, inputService:GetMouseLocation())
  sliderapi["SetValue2"](math.floor(argstable["Min"] + ((argstable["Max"] - argstable["Min"]) * xscale)))
  slider4.Position = UDim2.new(xscale2, -8, 1, -9)
  local move
  local kill
- move = game:GetService("UserInputService").InputChanged:Connect(function(input)
+ move = inputService.InputChanged:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseMovement then
- local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(slider1, inputService:GetMouseLocation())
  sliderapi["SetValue2"](math.floor(argstable["Min"] + ((argstable["Max"] - argstable["Min"]) * xscale)))
  --slider4.Position = UDim2.new(xscale2, -8, 1, -9)
  slider4:TweenPosition(UDim2.new(xscale2, -8, 1, -9), Enum.EasingDirection.InOut, Enum.EasingStyle.Quad, 0.05, true)
  end
  end)
- kill = game:GetService("UserInputService").InputEnded:Connect(function(input)
+ kill = inputService.InputEnded:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseButton1 then
  move:Disconnect()
  kill:Disconnect()
@@ -5340,7 +5363,7 @@ if shared.VapeExecuted then
  buttontext.LayoutOrder = amount
  buttontext.Size = UDim2.new(1, 0, 0, 30)
  buttontext.Active = false
- buttontext.TextColor3 = Color3.fromRGB(162, 162, 162)
+ buttontext.TextColor3 = Color3.fromRGB(196, 198, 206)
  buttontext.TextSize = 17
  buttontext.Font = Enum.Font.SourceSans
  buttontext.TextXAlignment = Enum.TextXAlignment.Left
@@ -5356,7 +5379,7 @@ if shared.VapeExecuted then
  buttonarrow.Parent = buttontext
  local toggleframe1 = Instance.new("Frame")
  toggleframe1.Size = UDim2.new(0, 22, 0, 12)
- toggleframe1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ toggleframe1.BackgroundColor3 = Color3.fromRGB(48, 49, 58)
  toggleframe1.BorderSizePixel = 0
  toggleframe1.Name = "ToggleFrame1"
  toggleframe1.Position = UDim2.new(1, -32, 0, 10)
@@ -5365,7 +5388,7 @@ if shared.VapeExecuted then
  toggleframe2.Size = UDim2.new(0, 8, 0, 8)
  toggleframe2.Active = false
  toggleframe2.Position = UDim2.new(0, 2, 0, 2)
- toggleframe2.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ toggleframe2.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  toggleframe2.BorderSizePixel = 0
  toggleframe2.Parent = toggleframe1
  local uicorner = Instance.new("UICorner")
@@ -5383,16 +5406,16 @@ if shared.VapeExecuted then
  buttonapi["Enabled"] = toggle
  if buttonapi["Enabled"] then
  if not first then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
  else
  toggleframe1.BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)
  end
  toggleframe2:TweenPosition(UDim2.new(0, 12, 0, 2), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, 0.1, true)
  else
  if not first then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58)}):Play()
  else
- toggleframe1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ toggleframe1.BackgroundColor3 = Color3.fromRGB(48, 49, 58)
  end
  toggleframe2:TweenPosition(UDim2.new(0, 2, 0, 2), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, 0.1, true)
  end
@@ -5410,7 +5433,7 @@ if shared.VapeExecuted then
  hoverbox.Size = UDim2.new(0, 13 + textsize.X, 0, textsize.Y + 5)
  end
  if buttonapi["Enabled"] == false then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(100, 100, 100)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(86, 88, 102)}):Play()
  end
  end)
  if argstable["HoverText"] and type(argstable["HoverText"]) == "string" then
@@ -5422,7 +5445,7 @@ if shared.VapeExecuted then
  buttontext.MouseLeave:connect(function()
  hoverbox.Visible = false
  if buttonapi["Enabled"] == false then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58)}):Play()
  end
  end)
  
@@ -5441,7 +5464,7 @@ if shared.VapeExecuted then
  bindbkg.Visible = true
  end
  if not buttonapi["Enabled"] then
- currenttween = game:GetService("TweenService"):Create(button, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(31, 30, 31)})
+ currenttween = tweenService:Create(button, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(28, 28, 34)})
  currenttween:Play()
  end
  end)
@@ -5451,7 +5474,7 @@ if shared.VapeExecuted then
  bindbkg.Visible = false 
  end
  if not buttonapi["Enabled"] then
- currenttween = game:GetService("TweenService"):Create(button, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(26, 25, 26)})
+ currenttween = tweenService:Create(button, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(18, 18, 22)})
  currenttween:Play()
  end
  end)
@@ -5551,7 +5574,7 @@ if shared.VapeExecuted then
  local windowtitle = Instance.new("TextButton")
  windowtitle.Text = ""
  windowtitle.AutoButtonColor = false
- windowtitle.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ windowtitle.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  windowtitle.Size = UDim2.new(0, 220, 0, 41)
  windowtitle.Position = UDim2.new(0, 223, 0, 6)
  windowtitle.Name = "MainWindow"
@@ -5700,7 +5723,7 @@ if shared.VapeExecuted then
  text1.TextXAlignment = Enum.TextXAlignment.Left
  text1.Text = " "..(translations[argstable["Name"]] ~= nil and translations[argstable["Name"]] or argstable["Name"])
  text1.Size = UDim2.new(1, 0, 0, 27)
- text1.TextColor3 = Color3.fromRGB(162, 162, 162)
+ text1.TextColor3 = Color3.fromRGB(196, 198, 206)
  text1.BackgroundTransparency = 1
  text1.TextSize = 14
  text1.Parent = frame
@@ -5727,7 +5750,7 @@ if shared.VapeExecuted then
  local slider3 = Instance.new("ImageButton")
  slider3.AutoButtonColor = false
  slider3.Size = UDim2.new(0, 24, 0, 16)
- slider3.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ slider3.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  slider3.BorderSizePixel = 0
  slider3.Image = getcustomassetfunc("vape/assets/SliderButton1.png")
  slider3.Position = UDim2.new(0.44, -11, 0, -7)
@@ -5738,10 +5761,10 @@ if shared.VapeExecuted then
  slidersat.Name = frame.Name.."Saturation"
  slidersat.BackgroundTransparency = 0
  slidersat.Visible = false
- slidersat.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ slidersat.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  slidersat.Slider.UIGradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, 1)), ColorSequenceKeypoint.new(1, Color3.fromHSV(0.4, 1, 1))})
  slidersat.Slider.ButtonSlider.Position = UDim2.new(0.95, -11, 0, -7)
- slidersat.Slider.ButtonSlider.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ slidersat.Slider.ButtonSlider.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  slidersat.Frame:Remove()
  slidersat.Parent = children2
  local sliderval = frame:Clone()
@@ -5749,10 +5772,10 @@ if shared.VapeExecuted then
  sliderval.Name = frame.Name.."Vibrance"
  sliderval.BackgroundTransparency = 0
  sliderval.Visible = false
- sliderval.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ sliderval.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  sliderval.Slider.UIGradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, 0)), ColorSequenceKeypoint.new(1, Color3.fromHSV(0.4, 1, 1))})
  sliderval.Slider.ButtonSlider.Position = UDim2.new(0.95, -11, 0, -7)
- sliderval.Slider.ButtonSlider.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ sliderval.Slider.ButtonSlider.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  sliderval.Frame:Remove()
  sliderval.Parent = children2
  local sliderexpand = Instance.new("ImageButton")
@@ -5823,19 +5846,19 @@ if shared.VapeExecuted then
  if click then
  sliderapi["SetRainbow"](not sliderapi["RainbowValue"])
  end
- local x,y,xscale,yscale,xscale2 = RelativeXY(obj, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(obj, inputService:GetMouseLocation())
  sliderapi["SetValue"]((valtochange == "Hue" and (min + ((max - min) * xscale)) or false), (valtochange == "Sat" and (min + ((max - min) * xscale)) or false), (valtochange == "Value" and (min + ((max - min) * xscale)) or false))
  obj.ButtonSlider.Position = UDim2.new(math.clamp(xscale2, 0.02, 0.95), -9, 0, -7)
  local move
  local kill
- move = game:GetService("UserInputService").InputChanged:Connect(function(input)
+ move = inputService.InputChanged:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseMovement then
- local x,y,xscale,yscale,xscale2 = RelativeXY(obj, game:GetService("UserInputService"):GetMouseLocation())
+ local x,y,xscale,yscale,xscale2 = RelativeXY(obj, inputService:GetMouseLocation())
  sliderapi["SetValue"]((valtochange == "Hue" and (min + ((max - min) * xscale)) or false), (valtochange == "Sat" and (min + ((max - min) * xscale)) or false), (valtochange == "Value" and (min + ((max - min) * xscale)) or false))
  obj.ButtonSlider.Position = UDim2.new(math.clamp(xscale2, 0.02, 0.95), -9, 0, -7)
  end
  end)
- kill = game:GetService("UserInputService").InputEnded:Connect(function(input)
+ kill = inputService.InputEnded:Connect(function(input)
  if input.UserInputType == Enum.UserInputType.MouseButton1 then
  capturedslider = {["Type"] = "ColorSlider", ["Object"] = obj.Parent, ["Api"] = sliderapi}
  move:Disconnect()
@@ -5879,7 +5902,7 @@ if shared.VapeExecuted then
  frame.MouseLeave:connect(function()
  hoverbox.Visible = false
  if buttonapi and buttonapi["Enabled"] == false then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58)}):Play()
  end
  end)
  api["ObjectsThatCanBeSaved"][argstable["Name"].."SliderColor"] = {["Type"] = "ColorSlider", ["Object"] = frame, ["Object2"] = slidersat, ["Object3"] = sliderval, ["Api"] = sliderapi}
@@ -5899,7 +5922,7 @@ if shared.VapeExecuted then
  buttontext.LayoutOrder = amount
  buttontext.Size = UDim2.new(1, 0, 0, 30)
  buttontext.Active = false
- buttontext.TextColor3 = Color3.fromRGB(162, 162, 162)
+ buttontext.TextColor3 = Color3.fromRGB(196, 198, 206)
  buttontext.TextSize = 17
  buttontext.Font = Enum.Font.SourceSans
  buttontext.TextXAlignment = Enum.TextXAlignment.Left
@@ -5915,7 +5938,7 @@ if shared.VapeExecuted then
  buttonarrow.Parent = buttontext
  local toggleframe1 = Instance.new("Frame")
  toggleframe1.Size = UDim2.new(0, 22, 0, 12)
- toggleframe1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ toggleframe1.BackgroundColor3 = Color3.fromRGB(48, 49, 58)
  toggleframe1.BorderSizePixel = 0
  toggleframe1.Name = "ToggleFrame1"
  toggleframe1.Position = UDim2.new(1, -32, 0, 10)
@@ -5924,7 +5947,7 @@ if shared.VapeExecuted then
  toggleframe2.Size = UDim2.new(0, 8, 0, 8)
  toggleframe2.Active = false
  toggleframe2.Position = UDim2.new(0, 2, 0, 2)
- toggleframe2.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ toggleframe2.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  toggleframe2.BorderSizePixel = 0
  toggleframe2.Parent = toggleframe1
  local uicorner = Instance.new("UICorner")
@@ -5942,16 +5965,16 @@ if shared.VapeExecuted then
  buttonapi["Enabled"] = toggle
  if buttonapi["Enabled"] then
  if not first then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)}):Play()
  else
  toggleframe1.BackgroundColor3 = Color3.fromHSV(api["Settings"]["GUIObject"]["Color"], 0.7, 0.9)
  end
  toggleframe2:TweenPosition(UDim2.new(0, 12, 0, 2), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, 0.1, true)
  else
  if not first then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTween"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58)}):Play()
  else
- toggleframe1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ toggleframe1.BackgroundColor3 = Color3.fromRGB(48, 49, 58)
  end
  toggleframe2:TweenPosition(UDim2.new(0, 2, 0, 2), Enum.EasingDirection.InOut, Enum.EasingStyle.Linear, 0.1, true)
  end
@@ -5969,7 +5992,7 @@ if shared.VapeExecuted then
  hoverbox.Size = UDim2.new(0, 13 + textsize.X, 0, textsize.Y + 5)
  end
  if buttonapi["Enabled"] == false then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(100, 100, 100)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(86, 88, 102)}):Play()
  end
  end)
  if argstable["HoverText"] and type(argstable["HoverText"]) == "string" then
@@ -5981,7 +6004,11 @@ if shared.VapeExecuted then
  buttontext.MouseLeave:connect(function()
  hoverbox.Visible = false
  if buttonapi["Enabled"] == false then
- game:GetService("TweenService"):Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+ tweenService:Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(48, 49, 58)}):Play()
+ end
+ end)
+
+ api["ObjectsThatCanBeSaved"][argstable["Name"].."Toggle"] = {["Type"] = "Toggle", ["Object"] = buttontext, ["Api"] = buttonapi}
  return buttonapi
  end
 
@@ -6019,7 +6046,7 @@ if shared.VapeExecuted then
  local addbutton = Instance.new("ImageButton")
  addbutton.BorderSizePixel = 0
  addbutton.Name = "AddButton"
- addbutton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ addbutton.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  addbutton.Position = UDim2.new(0, (argstable["Name"] == "ProfilesList" and 124 or 174), 0, 8)
  addbutton.AutoButtonColor = false
  addbutton.Size = UDim2.new(0, 16, 0, 16)
@@ -6065,7 +6092,7 @@ if shared.VapeExecuted then
  itemframe.Size = UDim2.new(0, 200, 0, 33)
  itemframe.Text = ""
  itemframe.AutoButtonColor = false
- itemframe.BackgroundColor3 = Color3.fromRGB(31, 30, 31)
+ itemframe.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
  itemframe.BorderSizePixel = 0
  itemframe.Parent = scrollframe
  local itemcorner = Instance.new("UICorner")
@@ -6149,7 +6176,7 @@ if shared.VapeExecuted then
  local addbutton = Instance.new("ImageButton")
  addbutton.BorderSizePixel = 0
  addbutton.Name = "AddButton"
- addbutton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ addbutton.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
  addbutton.Position = UDim2.new(0, (argstable["Name"] == "ProfilesList" and 124 or 174), 0, 8)
  addbutton.AutoButtonColor = false
  addbutton.Size = UDim2.new(0, 16, 0, 16)
@@ -6200,7 +6227,7 @@ if shared.VapeExecuted then
  itemframe.Size = UDim2.new(0, 200, 0, 33)
  itemframe.Text = ""
  itemframe.AutoButtonColor = false
- itemframe.BackgroundColor3 = (hoveredover[i] and Color3.fromRGB(26, 25, 26) or Color3.fromRGB(31, 30, 31))
+ itemframe.BackgroundColor3 = (hoveredover[i] and Color3.fromRGB(18, 18, 22) or Color3.fromRGB(28, 28, 34))
  itemframe.BorderSizePixel = 0
  itemframe.Parent = scrollframe
  local itemcorner = Instance.new("UICorner")
@@ -6237,11 +6264,11 @@ if shared.VapeExecuted then
  friendcircle2.BackgroundColor3 = itemframe.BackgroundColor3
  end)
  itemframe.MouseEnter:connect(function()
- itemframe.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+ itemframe.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
  hoveredover[i] = true
  end)
  itemframe.MouseLeave:connect(function()
- itemframe.BackgroundColor3 = Color3.fromRGB(31, 30, 31)
+ itemframe.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
  hoveredover[i] = nil
  end)
  itemframe.MouseButton1Click:connect(function()
@@ -6428,11 +6455,11 @@ if shared.VapeExecuted then
 
  local holdingcontrol = false
 
- api["KeyInputHandler"] = game:GetService("UserInputService").InputBegan:connect(function(input1)
- if game:GetService("UserInputService"):GetFocusedTextBox() == nil then
+ api["KeyInputHandler"] = inputService.InputBegan:connect(function(input1)
+ if inputService:GetFocusedTextBox() == nil then
  if input1.KeyCode == Enum.KeyCode[api["GUIKeybind"]] and api["KeybindCaptured"] == false then
  clickgui.Visible = not clickgui.Visible
- game:GetService("UserInputService").OverrideMouseIconBehavior = (clickgui.Visible and Enum.OverrideMouseIconBehavior.ForceShow or game:GetService("VRService").VREnabled and Enum.OverrideMouseIconBehavior.ForceHide or Enum.OverrideMouseIconBehavior.None)
+ inputService.OverrideMouseIconBehavior = (clickgui.Visible and Enum.OverrideMouseIconBehavior.ForceShow or game:GetService("VRService").VREnabled and Enum.OverrideMouseIconBehavior.ForceHide or Enum.OverrideMouseIconBehavior.None)
  api["MainBlur"].Enabled = clickgui.Visible 
  if OnlineProfilesBigFrame.Visible then
  OnlineProfilesBigFrame.Visible = false
@@ -6474,7 +6501,7 @@ if shared.VapeExecuted then
  end
  end)
 
- api["KeyInputHandler2"] = game:GetService("UserInputService").InputEnded:connect(function(input1)
+ api["KeyInputHandler2"] = inputService.InputEnded:connect(function(input1)
  if input1.KeyCode == Enum.KeyCode.LeftShift then
  holdingshift = false
  end
