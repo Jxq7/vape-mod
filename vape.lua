@@ -20,6 +20,12 @@ if shared.VapeExecuted then
  end
  end 
  local betterisfile = function(file)
+ if isfile then
+ local ok, res = pcall(isfile, file)
+ if ok then
+ return res
+ end
+ end
  local suc, res = pcall(function() return readfile(file) end)
  return suc and res ~= nil
  end
@@ -148,30 +154,22 @@ if shared.VapeExecuted then
 
  local cachedassets = {}
  local function getcustomassetfunc(path)
+ if cachedassets[path] ~= nil then
+ return cachedassets[path]
+ end
  if not betterisfile(path) then
- spawn(function()
- local textlabel = Instance.new("TextLabel")
- textlabel.Size = UDim2.new(1, 0, 0, 36)
- textlabel.Text = "Downloading "..path
- textlabel.BackgroundTransparency = 1
- textlabel.TextStrokeTransparency = 0
- textlabel.TextSize = 30
- textlabel.Font = Enum.Font.SourceSans
- textlabel.TextColor3 = Color3.new(1, 1, 1)
- textlabel.Position = UDim2.new(0, 0, 0, -36)
- textlabel.Parent = api["MainGui"]
- repeat wait() until betterisfile(path)
- textlabel:Remove()
- end)
+ pcall(function()
  local req = requestfunc({
- Url = "https://raw.githubusercontent.com/UnknowninglyMC/OldVapeForRB/main/"..path:gsub("vape/assets", "assets"),
+ Url = "https://raw.githubusercontent.com/UnknowninglyMC/OldVapeForRB/main/"..path:gsub("vape/assets", "assets"):gsub("vape/translations", "translations"),
  Method = "GET"
  })
+ if type(req) == "table" and type(req.Body) == "string" and #req.Body > 8 then
  writefile(path, req.Body)
  end
- if cachedassets[path] == nil then
- cachedassets[path] = getasset(path) 
+ end)
  end
+ local ok, asset = pcall(getasset, path)
+ cachedassets[path] = ok and asset or ""
  return cachedassets[path]
  end
 
@@ -5984,10 +5982,6 @@ if shared.VapeExecuted then
  hoverbox.Visible = false
  if buttonapi["Enabled"] == false then
  game:GetService("TweenService"):Create(toggleframe1, api["HoverTweenSlow"], {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
- end
- end)
-
- api["ObjectsThatCanBeSaved"][argstable["Name"].."Toggle"] = {["Type"] = "Toggle", ["Object"] = buttontext, ["Api"] = buttonapi}
  return buttonapi
  end
 
@@ -6439,6 +6433,10 @@ if shared.VapeExecuted then
  if input1.KeyCode == Enum.KeyCode[api["GUIKeybind"]] and api["KeybindCaptured"] == false then
  clickgui.Visible = not clickgui.Visible
  game:GetService("UserInputService").OverrideMouseIconBehavior = (clickgui.Visible and Enum.OverrideMouseIconBehavior.ForceShow or game:GetService("VRService").VREnabled and Enum.OverrideMouseIconBehavior.ForceHide or Enum.OverrideMouseIconBehavior.None)
+ api["MainBlur"].Enabled = clickgui.Visible 
+ if OnlineProfilesBigFrame.Visible then
+ OnlineProfilesBigFrame.Visible = false
+ end
  api["MainBlur"].Enabled = clickgui.Visible and shared.VapeNoBlur ~= true
  if OnlineProfilesBigFrame.Visible then
  OnlineProfilesBigFrame.Visible = false
@@ -6495,14 +6493,10 @@ if shared.VapeExecuted then
  local optionbuttons = {}
  for i,v in pairs(api["ObjectsThatCanBeSaved"]) do
  if i:find("OptionsButton") and i:lower():find(searchbar.Text:lower(), 1, true) then
- local button = Instance.new("TextButton")
- button.Name = v["Object"].Name
- button.AutoButtonColor = false
- button.Active = true
  button.Size = UDim2.new(1, 0, 0, 40)
  button.BorderSizePixel = 0
  button.Position = UDim2.new(0, 0, 0, 40 * #optionbuttons)
- button.ZIndex = 10
+ button.ZIndex = 10a
  button.BackgroundColor3 = v["Object"].BackgroundColor3
  button.Text = ""
  button.LayoutOrder = amount
@@ -6561,74 +6555,6 @@ if shared.VapeExecuted then
  api["MainRescale"]:GetPropertyChangedSignal("Scale"):connect(function()
  searchbarmain.Position = UDim2.new(0.5 / api["MainRescale"].Scale, -110, 0, -23)
  end)
-
- api["Fonts"] = {"Legacy", "Arial", "ArialBold", "SourceSans", "SourceSansBold", "SourceSansLight", "SourceSansItalic", "SourceSansSemibold", "Garamond", "Cartoon", "Code", "Highway", "SciFi", "Arcade", "Fantasy", "Antique", "Gotham", "GothamMedium", "GothamBold", "GothamBlack", "AmaticSC", "Bangers", "Creepster", "DenkOne", "Fondamento", "FredokaOne", "GrenzeGotisch", "IndieFlower", "JosefinSans", "Jura", "Kalam", "LuckiestGuy", "Merriweather", "Michroma", "Nunito", "Oswald", "PatrickHand", "PermanentMarker", "Roboto", "RobotoCondensed", "RobotoMono", "Sarpanch", "SpecialElite", "TitilliumWeb", "Ubuntu", "BuilderSans", "Arimo"}
- api["CurrentFont"] = "SourceSans"
- api["ApplyFont"] = function(fontName)
- local ok, font = pcall(function()
- return Enum.Font[fontName]
- end)
- if not ok or not font then
- return
- end
- api["CurrentFont"] = fontName
- local roots = {api["MainGui"], clickgui}
- for i = 1, #roots do
- local root = roots[i]
- if root then
- for _, descendant in root:GetDescendants() do
- if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
- pcall(function()
- descendant.Font = font
- end)
- end
- end
- end
- end
- end
- api["SetWatermark"] = function(text)
- local label = api["Watermark"]
- if not label then
- label = Instance.new("TextLabel")
- label.Name = "Watermark"
- label.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
- label.BackgroundTransparency = 0.2
- label.BorderSizePixel = 0
- label.TextColor3 = Color3.fromRGB(235, 235, 235)
- label.Font = Enum.Font.GothamMedium
- label.TextSize = 14
- label.TextXAlignment = Enum.TextXAlignment.Left
- label.Position = UDim2.new(0, 10, 0, 10)
- label.Size = UDim2.new(0, 180, 0, 24)
- local corner = Instance.new("UICorner")
- corner.CornerRadius = UDim.new(0, 4)
- corner.Parent = label
- label.Parent = api["MainGui"]
- api["Watermark"] = label
- end
- local shown = text ~= nil and text ~= ""
- label.Text = shown and ("  " .. tostring(text)) or ""
- label.Visible = shown
- end
- api["SelfDestruct"] = function()
- pcall(function()
- api["SelfDestructEvent"]:Fire()
- end)
- pcall(function()
- if api["KeyInputHandler"] then
- api["KeyInputHandler"]:Disconnect()
- end
- if api["KeyInputHandler2"] then
- api["KeyInputHandler2"]:Disconnect()
- end
- end)
- pcall(function()
- if api["MainGui"] then
- api["MainGui"]:Destroy()
- end
- end)
- shared.VapeExecuted = nil
- end
 
  return api
 end
